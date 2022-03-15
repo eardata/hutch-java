@@ -1,0 +1,10 @@
+name: Hutch
+description: Hutch for java. (like Hutch for rails)
+metadata:
+  keywords:
+    - hutch
+    - rabbitmq
+#  guide: ...
+#  categories:
+#    - "miscellaneous"
+#  status: "preview"
