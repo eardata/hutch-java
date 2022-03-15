@@ -2,6 +2,7 @@ package com.easyacc.hutch.core;
 
 import com.easyacc.hutch.Hutch;
 import com.easyacc.hutch.util.HutchUtils;
+import io.quarkus.arc.Unremovable;
 import java.util.Map;
 
 /**
@@ -10,6 +11,7 @@ import java.util.Map;
  * @see <a href="https://codertw.com/%E7%A8%8B%E5%BC%8F%E8%AA%9E%E8%A8%80/431837/">Java 8 default
  *     method</a>
  */
+@Unremovable
 public interface HutchConsumer {
 
   /** 每一个 Channel 能够拥有的 prefech, 避免单个 channel 积累太多任务. default: 2 */

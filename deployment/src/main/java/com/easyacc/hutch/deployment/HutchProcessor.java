@@ -2,6 +2,7 @@ package com.easyacc.hutch.deployment;
 
 import com.easyacc.hutch.core.HutchConsumer;
 import io.quarkus.arc.deployment.AutoAddScopeBuildItem;
+import io.quarkus.arc.deployment.UnremovableBeanBuildItem;
 import io.quarkus.arc.processor.BuiltinScope;
 import io.quarkus.deployment.annotations.BuildStep;
 import io.quarkus.deployment.builditem.FeatureBuildItem;
@@ -22,11 +23,18 @@ class HutchProcessor {
   /** 构建期将标记有 @HutchConsumer 的元素设置为 SINGLETON 的 scope */
   @BuildStep
   AutoAddScopeBuildItem autoAddScope() {
-    LOGGER.info("run autoAddScope to add @HutchConsumer to CDI");
+    LOGGER.info("run autoAddScope to add HutchConsumer to CDI");
     return AutoAddScopeBuildItem.builder()
+        .unremovable()
         .implementsInterface(HUTCH_CONSUMER_NAME)
         .defaultScope(BuiltinScope.SINGLETON)
         .reason("Found hutch consumer class")
         .build();
+  }
+
+  /** 不知道为什么通过 AutoAddScope 添加的类设置了 unremovable 但无法生效, 所以这里强制指定这 bean 需要保留在 CDI 中 */
+  @BuildStep
+  UnremovableBeanBuildItem unremovable() {
+    return UnremovableBeanBuildItem.beanTypes(HUTCH_CONSUMER_NAME);
   }
 }
