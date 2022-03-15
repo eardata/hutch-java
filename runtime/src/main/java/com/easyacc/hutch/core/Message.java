@@ -16,11 +16,13 @@
 
 package com.easyacc.hutch.core;
 
+import com.easyacc.hutch.Hutch;
 import java.io.Serializable;
 import java.nio.charset.Charset;
 import java.util.Arrays;
 import java.util.LinkedHashSet;
 import java.util.Set;
+import lombok.SneakyThrows;
 
 /**
  * The 0-8 and 0-9-1 AMQP specifications do not define an Message class or interface. Instead, when
@@ -128,6 +130,11 @@ public class Message implements Serializable {
     }
     // Comes out as '[B@....b' (so harmless)
     return this.body.toString() + "(byte[" + this.body.length + "])"; // NOSONAR
+  }
+
+  @SneakyThrows
+  public <T> T toType(Class<T> clazz) {
+    return Hutch.om().readerFor(clazz).readValue(this.getBodyContentAsString());
   }
 
   private String encoding(boolean nullProps) {
