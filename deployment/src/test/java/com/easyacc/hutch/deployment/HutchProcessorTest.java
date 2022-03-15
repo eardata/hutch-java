@@ -5,6 +5,7 @@ import static com.google.common.truth.Truth.assertThat;
 import com.easyacc.hutch.core.HutchConsumer;
 import io.quarkus.test.QuarkusUnitTest;
 import javax.enterprise.inject.spi.BeanManager;
+import javax.enterprise.inject.spi.CDI;
 import javax.inject.Inject;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
@@ -26,5 +27,16 @@ class HutchProcessorTest {
   void testHutchConsumerAllInCDI() {
     var beans = beanManager.getBeans(HutchConsumer.class);
     assertThat(beans).hasSize(2);
+  }
+
+  @Test
+  void testLoadBeanFromCDI() {
+    var beans = beanManager.getBeans(HutchConsumer.class);
+    for (var bean : beans) {
+      var h = (HutchConsumer) CDI.current().select(bean.getBeanClass()).get();
+      assertThat(h.prefetch()).isEqualTo(2);
+      assertThat(h.queue()).startsWith("hutch_");
+      System.out.println(h.queue());
+    }
   }
 }

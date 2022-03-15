@@ -46,7 +46,7 @@ public class Hutch {
   public static final String HUTCH_SCHEDULE_EXCHANGE = "hutch.schedule";
 
   /** 用于 queue 前缀的应用名, 因为 Quarkus 的 CDI 的机制, 现在需要在 HutchConsumer 初始化之前就设置好, 例如 static {} 代码块中 */
-  public static String APP_NAME;
+  public static String APP_NAME = "hutch";
   /** 用于方便进行 static 方法进行调用 */
   private static volatile Hutch currentHutch;
 
