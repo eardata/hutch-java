@@ -5,7 +5,7 @@ import io.quarkus.deployment.builditem.FeatureBuildItem;
 
 class HutchProcessor {
 
-  private static final String FEATURE = "com/easyacc/hutch";
+  private static final String FEATURE = "hutch";
 
   @BuildStep
   FeatureBuildItem feature() {
