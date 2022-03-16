@@ -11,11 +11,12 @@ import lombok.extern.slf4j.Slf4j;
 public class HutchRecorder {
   @Getter HutchConfig config;
 
-  public HutchRecorder(HutchConfig config) {
-    this.config = config;
+  /** 交给 quarkus 对 Recorder 通过构造函数注入依赖 */
+  public HutchRecorder(HutchConfig cfg) {
+    this.config = cfg;
   }
 
   public void initHutchName() {
-    Hutch.APP_NAME = config.name;
+    Hutch.APP_NAME = this.config.name;
   }
 }

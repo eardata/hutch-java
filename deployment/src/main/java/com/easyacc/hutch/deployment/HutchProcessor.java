@@ -38,16 +38,20 @@ class HutchProcessor {
   /** 不知道为什么通过 AutoAddScope 添加的类设置了 unremovable 但无法生效, 所以这里强制指定这 bean 需要保留在 CDI 中 */
   @BuildStep
   UnremovableBeanBuildItem unremovable() {
-    LOGGER.info("UnremovableBeanBuildItem");
-    //    SyntheticBeanBuildItem.configure(null).setRuntimeInit()
     return UnremovableBeanBuildItem.beanTypes(HUTCH_CONSUMER_NAME);
   }
 
-  /** 在这里读取 HutchConfig 对 Hutch 做一些 static 与 runtime 的设置和初始化 */
+  /** 在这里读取 HutchConfig 对 Hutch 做一些 static 与 runtime 的设置和初始化. 合并一个 Bean 交给 CDI */
   @BuildStep
-  @Record(ExecutionTime.RUNTIME_INIT)
+  @Record(ExecutionTime.STATIC_INIT)
   void setUpHutchInstance(HutchRecorder recorder) {
     LOGGER.info(recorder.getConfig());
     recorder.initHutchName();
+    // TODO: 想办法是否可以默认初始化一个 Hutch 实例在 IOC 中
+    //    return SyntheticBeanBuildItem.configure(Hutch.class)
+    //        .setRuntimeInit()
+    //        .scope(Singleton.class)
+    //        .unremovable()
+    //        .done();
   }
 }

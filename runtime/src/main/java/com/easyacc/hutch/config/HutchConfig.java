@@ -5,9 +5,9 @@ import io.quarkus.runtime.annotations.ConfigPhase;
 import io.quarkus.runtime.annotations.ConfigRoot;
 import io.quarkus.runtime.annotations.StaticInitSafe;
 
-/** Created by IntelliJ IDEA. User: wyatt Date: 2022/3/15 Time: 20:01 */
-@ConfigRoot(name = "hutch", phase = ConfigPhase.BUILD_AND_RUN_TIME_FIXED)
+/** 提供配置 Hutch 的配置. 需要是 StaticInitSafe 状态, 能够在 static 的时候就开始处理 */
 @StaticInitSafe
+@ConfigRoot(name = "hutch", phase = ConfigPhase.BUILD_AND_RUN_TIME_FIXED)
 public class HutchConfig {
 
   /** Hutch 的 prefix 前缀名称 */
