@@ -1,6 +1,5 @@
 package com.easyacc.hutch;
 
-import com.easyacc.hutch.core.AbstractHutchConsumer;
 import com.easyacc.hutch.core.HutchConsumer;
 import com.easyacc.hutch.util.HutchUtils;
 import com.easyacc.hutch.util.HutchUtils.Gradient;
@@ -15,11 +14,15 @@ import com.rabbitmq.client.Connection;
 import io.quarkiverse.rabbitmqclient.RabbitMQClient;
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
-import javax.enterprise.inject.spi.BeanManager;
+import java.util.stream.Collectors;
+import javax.enterprise.inject.spi.CDI;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.SneakyThrows;
@@ -53,7 +56,6 @@ public class Hutch {
   @Setter private static ObjectMapper objectMapper;
 
   private final Map<String, List<SimpleConsumer>> hutchConsumers;
-  private final BeanManager beanManager;
   /**
    * 需要的是 Java SDK 的 RabbitMQ Client, 暂时不能使用 smallrye-reactive-messaging 所支持的 RabbitMQ 的 Connection,
    * 因为 sm-ra-ms 走的是 Reactive 的异步响应模式, 相比与 Java SDK 提供的同步线程模式有很大的区别, 其提供的 API 也非常不一样, 在弄明白如如何与现有
@@ -67,9 +69,8 @@ public class Hutch {
   private Connection conn;
   private boolean isStarted = false;
 
-  public Hutch(RabbitMQClient client, BeanManager beanManager) {
+  public Hutch(RabbitMQClient client) {
     this.client = client;
-    this.beanManager = beanManager;
     this.hutchConsumers = new HashMap<>();
   }
 
@@ -146,6 +147,38 @@ public class Hutch {
     return Hutch.objectMapper;
   }
 
+  /** 根据 queue 从 ioc 容器中寻找已经通过 DI 处理好依赖的 HutchConsumer 实例 */
+  public static Optional<HutchConsumer> findHutchConsumerBean(Class<?> bean) {
+    try {
+      var hc = (HutchConsumer) CDI.current().select(bean).get();
+      if (hc == null) {
+        log.warn("Queue {} has no HutchConsumer", bean.getSimpleName());
+        return Optional.empty();
+      }
+      return Optional.of(hc);
+    } catch (IllegalArgumentException e) {
+      log.error("Queue 拥有多个 Bean: {}, 需要区分名称", bean.getSimpleName());
+    }
+    return Optional.empty();
+  }
+
+  public static Set<HutchConsumer> consumers() {
+    var beans = CDI.current().getBeanManager().getBeans(HutchConsumer.class);
+    var queues = new HashSet<HutchConsumer>();
+    for (var bean : beans) {
+      var hco = findHutchConsumerBean(bean.getBeanClass());
+      if (hco.isEmpty()) {
+        continue;
+      }
+      queues.add(hco.get());
+    }
+    return queues;
+  }
+
+  public static Set<String> queues() {
+    return consumers().stream().map(HutchConsumer::queue).collect(Collectors.toSet());
+  }
+
   public Hutch start() {
     if (this.isStarted) {
       return this;
@@ -154,13 +187,8 @@ public class Hutch {
     try {
       connect();
       declearExchanges();
-      var queues = AbstractHutchConsumer.queues();
-      log.info("Start Hutch with queues: {}", queues);
-      for (var q : queues) {
-        var hc = findHutchConsumerBean(q);
-        if (hc == null) {
-          continue;
-        }
+      log.info("Start Hutch with queues: {}", Hutch.queues());
+      for (var hc : Hutch.consumers()) {
         declearHutchConsumQueue(hc);
         initHutchConsumer(hc);
         log.info("Connect to {}", hc.queue());
@@ -217,32 +245,6 @@ public class Hutch {
       scl.add(consumeHutchConsumer(conn, hc));
     }
     this.hutchConsumers.put(hc.queue(), scl);
-  }
-
-  /** 根据 queue 从 ioc 容器中寻找已经通过 DI 处理好依赖的 HutchConsumer 实例 */
-  public HutchConsumer findHutchConsumerBean(String queue) {
-    var beans = beanManager.getBeans(HutchConsumer.class);
-    var bl =
-        beans.stream()
-            .filter(
-                b -> {
-                  var name = HutchUtils.upCamelToLowerUnderscore(b.getBeanClass().getSimpleName());
-                  return Hutch.prefixQueue(name).equals(queue);
-                })
-            .toList();
-    if (bl.size() == 1) {
-      var hcBean = bl.get(0);
-      return (HutchConsumer)
-          beanManager.getReference(
-              hcBean, HutchConsumer.class, beanManager.createCreationalContext(hcBean));
-    }
-    if (bl.size() < 1) {
-      log.warn("Queue {} has no HutchConsumer", queue);
-    }
-    if (bl.size() > 1) {
-      log.error("Queue {} 拥有多个 Bean: {}, 需要区分名称", queue, bl);
-    }
-    return null;
   }
 
   public void stop() {

@@ -6,7 +6,6 @@ import com.easyacc.hutch.Hutch;
 import com.easyacc.hutch.config.HutchConfig;
 import com.easyacc.hutch.core.HutchConsumer;
 import io.quarkus.test.QuarkusUnitTest;
-import javax.enterprise.inject.spi.BeanManager;
 import javax.enterprise.inject.spi.CDI;
 import javax.inject.Inject;
 import org.junit.jupiter.api.Test;
@@ -25,21 +24,19 @@ class HutchProcessorTest {
   @Inject AbcConsumer abcConsumer;
   @Inject HutchConfig cfg;
 
-  @Inject BeanManager beanManager;
-
   @Test
   void testHutchConsumerAllInCDI() {
-    var beans = beanManager.getBeans(HutchConsumer.class);
+    var beans = CDI.current().getBeanManager().getBeans(HutchConsumer.class);
     assertThat(beans).hasSize(2);
   }
 
   @Test
   void testLoadBeanFromCDI() {
-    var beans = beanManager.getBeans(HutchConsumer.class);
+    var beans = CDI.current().getBeanManager().getBeans(HutchConsumer.class);
     for (var bean : beans) {
       var h = (HutchConsumer) CDI.current().select(bean.getBeanClass()).get();
       assertThat(h.prefetch()).isEqualTo(2);
-      assertThat(h.queue()).startsWith("hutch_");
+      assertThat(h.queue()).startsWith("lake_web_");
       System.out.println(h.queue());
     }
   }
