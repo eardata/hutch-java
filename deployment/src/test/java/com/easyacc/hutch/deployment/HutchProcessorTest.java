@@ -2,6 +2,8 @@ package com.easyacc.hutch.deployment;
 
 import static com.google.common.truth.Truth.assertThat;
 
+import com.easyacc.hutch.Hutch;
+import com.easyacc.hutch.config.HutchConfig;
 import com.easyacc.hutch.core.HutchConsumer;
 import io.quarkus.test.QuarkusUnitTest;
 import javax.enterprise.inject.spi.BeanManager;
@@ -16,10 +18,12 @@ class HutchProcessorTest {
   static final QuarkusUnitTest config =
       new QuarkusUnitTest()
           .overrideConfigKey("quarkus.application.name", "hutch-app")
-          //          .overrideConfigKey("quarkus.log.level", "debug")
+          .overrideConfigKey("quarkus.hutch.name", "lake_web")
+          //                    .overrideConfigKey("quarkus.log.level", "debug")
           .withApplicationRoot(jar -> jar.addClass(AbcConsumer.class).addClass(BbcConsumer.class));
 
   @Inject AbcConsumer abcConsumer;
+  @Inject HutchConfig cfg;
 
   @Inject BeanManager beanManager;
 
@@ -38,5 +42,12 @@ class HutchProcessorTest {
       assertThat(h.queue()).startsWith("hutch_");
       System.out.println(h.queue());
     }
+  }
+
+  @Test
+  void testHutchConfig() {
+    var c = CDI.current().select(HutchConfig.class).get();
+    assertThat(c.name).isEqualTo("lake_web");
+    assertThat(Hutch.name()).isEqualTo("lake_web");
   }
 }

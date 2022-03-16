@@ -1,10 +1,13 @@
 package com.easyacc.hutch.deployment;
 
+import com.easyacc.hutch.config.HutchRecorder;
 import com.easyacc.hutch.core.HutchConsumer;
 import io.quarkus.arc.deployment.AutoAddScopeBuildItem;
 import io.quarkus.arc.deployment.UnremovableBeanBuildItem;
 import io.quarkus.arc.processor.BuiltinScope;
 import io.quarkus.deployment.annotations.BuildStep;
+import io.quarkus.deployment.annotations.ExecutionTime;
+import io.quarkus.deployment.annotations.Record;
 import io.quarkus.deployment.builditem.FeatureBuildItem;
 import org.jboss.jandex.DotName;
 import org.jboss.logging.Logger;
@@ -35,6 +38,16 @@ class HutchProcessor {
   /** 不知道为什么通过 AutoAddScope 添加的类设置了 unremovable 但无法生效, 所以这里强制指定这 bean 需要保留在 CDI 中 */
   @BuildStep
   UnremovableBeanBuildItem unremovable() {
+    LOGGER.info("UnremovableBeanBuildItem");
+    //    SyntheticBeanBuildItem.configure(null).setRuntimeInit()
     return UnremovableBeanBuildItem.beanTypes(HUTCH_CONSUMER_NAME);
+  }
+
+  /** 在这里读取 HutchConfig 对 Hutch 做一些 static 与 runtime 的设置和初始化 */
+  @BuildStep
+  @Record(ExecutionTime.RUNTIME_INIT)
+  void setUpHutchInstance(HutchRecorder recorder) {
+    LOGGER.info(recorder.getConfig());
+    recorder.initHutchName();
   }
 }
