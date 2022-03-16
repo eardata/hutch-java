@@ -37,7 +37,7 @@ class MessageTest {
 
   @Test
   void toJsonRecord() throws JsonProcessingException {
-    var m = new MsgRecord("this is body", 12, true);
+    var m = new MsgRecord("this is body", 12, false);
     var j = Hutch.om().writeValueAsString(m);
     assertThat(j).isEqualTo(jrecord);
   }

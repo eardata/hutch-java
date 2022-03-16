@@ -26,8 +26,9 @@ class HutchProcessorTest {
 
   @Test
   void testHutchConsumerAllInCDI() {
-    var beans = CDI.current().getBeanManager().getBeans(HutchConsumer.class);
-    assertThat(beans).hasSize(2);
+    var hcs = Hutch.consumers();
+    assertThat(hcs).hasSize(2);
+    hcs.forEach(hc -> assertThat(hc.queueArguments()).isEmpty());
   }
 
   @Test

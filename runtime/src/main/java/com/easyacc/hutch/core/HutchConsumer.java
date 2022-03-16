@@ -6,6 +6,17 @@ import io.quarkus.arc.Unremovable;
 import java.util.Map;
 
 /**
+ * TODO: 可以考虑迁移到 Quarkus extension, 可以在 compile 阶段:<br>
+ * [x] 1. 自动扫描 class 级别的 @HutchConsumer 注解, 自动将 Bean 放到容器中<br>
+ * [ ] 2. 寻找 @HutchConsumer 方法级别注解, 自动生成 Class, 并将 class 放到容器中, 相关参数都可以放到注解上, 并且方法中传递的类自动反序列化(json).
+ * 然后交给 Hutch 最终来初始化 <br>
+ * [x] 3. 设置好 Hutch 实例的 APP_NAME<br>
+ * [x] 4. 将 Hutch 的配置直接集成到 quarkus 的配置中.<br>
+ * 插件<br>
+ * [ ] 5. 初始化好 Hutch, 让其自动连接 mq. (类似 {@link io.quarkus.scheduler.runtime.SimpleScheduler})<br>
+ * [ ] 6. 考虑将 RabbitMQ Client 由自己的插件解决, 而不需要 rabbitmq-client<br>
+ * [x] 7. 取消掉 AbstractHutchConsumer 类<br>
+ * <br>
  * 一个 HutchConsumer, 只消耗一个队列.
  *
  * @see <a href="https://codertw.com/%E7%A8%8B%E5%BC%8F%E8%AA%9E%E8%A8%80/431837/">Java 8 default
@@ -43,8 +54,10 @@ public interface HutchConsumer {
     return this.queue();
   }
 
-  /** 初始化 Queue 需要的变量 */
-  Map<String, Object> queueArguments();
+  /** 初始化 Queue 需要的变量, 有其他值自己覆写 */
+  default Map<String, Object> queueArguments() {
+    return Map.of();
+  }
 
   /** 具体处理消息 */
   void onMessage(Message message);

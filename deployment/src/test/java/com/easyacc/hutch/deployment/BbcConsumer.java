@@ -1,10 +1,10 @@
 package com.easyacc.hutch.deployment;
 
-import com.easyacc.hutch.core.AbstractHutchConsumer;
+import com.easyacc.hutch.core.HutchConsumer;
 import com.easyacc.hutch.core.Message;
 
 /** Created by IntelliJ IDEA. User: wyatt Date: 2022/3/15 Time: 17:02 */
-public class BbcConsumer extends AbstractHutchConsumer {
+public class BbcConsumer implements HutchConsumer {
 
   @Override
   public void onMessage(Message message) {
