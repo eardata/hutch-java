@@ -44,8 +44,7 @@ class HutchProcessorTest {
 
   @Test
   void testHutchConfig() {
-    var c = CDI.current().select(HutchConfig.class).get();
-    assertThat(c.name).isEqualTo("lake_web");
+    assertThat(cfg.name).isEqualTo("lake_web");
     assertThat(Hutch.name()).isEqualTo("lake_web");
   }
 }
