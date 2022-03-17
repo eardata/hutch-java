@@ -47,11 +47,10 @@ class HutchProcessor {
   void setUpHutchInstance(HutchRecorder recorder) {
     LOGGER.info(recorder.getConfig());
     recorder.initHutchName();
-    // TODO: 想办法是否可以默认初始化一个 Hutch 实例在 IOC 中
-    //    return SyntheticBeanBuildItem.configure(Hutch.class)
+    //    return SyntheticBeanBuildItem.configure(IHutch.class)
     //        .setRuntimeInit()
     //        .scope(Singleton.class)
-    //        .unremovable()
+    //        .supplier(recorder::hutchInstance)
     //        .done();
   }
 }

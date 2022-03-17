@@ -43,11 +43,23 @@ class HutchProcessorTest {
     }
   }
 
+  //  @Test
+  void hutchInIOC() {
+    // 测试提供一个 Hutch 在 IOC 里面
+    var h = CDI.current().select(Hutch.class).get();
+    assertThat(h).isNotNull();
+  }
+
   @Test
   void testHutchConfig() throws InterruptedException {
+    var config = CDI.current().select(HutchConfig.class).get();
+    assertThat(config).isNotNull();
+
     assertThat(cfg.name).isEqualTo("lake_web");
     assertThat(Hutch.name()).isEqualTo("lake_web");
-    new Hutch(cfg).start();
-    Thread.sleep(2000);
+    var h = new Hutch(cfg).start();
+    assertThat(h.isStarted()).isTrue();
+    h.stop();
+    assertThat(h.isStarted()).isFalse();
   }
 }

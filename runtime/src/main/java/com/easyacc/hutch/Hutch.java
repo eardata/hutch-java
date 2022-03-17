@@ -44,7 +44,7 @@ import lombok.extern.slf4j.Slf4j;
  * </pre>
  */
 @Slf4j
-public class Hutch {
+public class Hutch implements IHutch {
   public static final String HUTCH_EXCHANGE = "hutch";
   public static final String HUTCH_SCHEDULE_EXCHANGE = "hutch.schedule";
 
@@ -63,7 +63,8 @@ public class Hutch {
   @Getter private Channel ch;
 
   private Connection conn;
-  private boolean isStarted = false;
+
+  @Getter private boolean isStarted = false;
 
   public Hutch(HutchConfig config) {
     this.config = config;
@@ -84,19 +85,6 @@ public class Hutch {
     return String.format(
         "%s.%ss",
         HUTCH_SCHEDULE_EXCHANGE, TimeUnit.SECONDS.convert(fixedDelay, TimeUnit.MILLISECONDS));
-  }
-
-  /** 直接当做 JSON 发送 */
-  public static void publishJson(String routingKey, Object msg) {
-    var props =
-        new BasicProperties().builder().contentType("application/json").contentEncoding("UTF-8");
-    byte[] body = new byte[0];
-    try {
-      body = om().writeValueAsBytes(msg);
-    } catch (JsonProcessingException e) {
-      log.error("publishJson error", e);
-    }
-    publish(routingKey, props.build(), body);
   }
 
   /** 发送字符串 */
@@ -130,6 +118,31 @@ public class Hutch {
   public static void publishWithDelay(long delayInMs, BasicProperties props, byte[] body) {
     var fixDelay = HutchUtils.fixDealyTime(delayInMs);
     publish(Hutch.HUTCH_SCHEDULE_EXCHANGE, Hutch.delayRoutingKey(fixDelay), props, body);
+  }
+
+  /** 直接当做 JSON 发送 */
+  public static void publishJson(String routingKey, Object msg) {
+    var props =
+        new BasicProperties().builder().contentType("application/json").contentEncoding("UTF-8");
+    byte[] body = new byte[0];
+    try {
+      body = om().writeValueAsBytes(msg);
+    } catch (JsonProcessingException e) {
+      log.error("publishJson error", e);
+    }
+    publish(routingKey, props.build(), body);
+  }
+
+  public static void publishJsonWithDelay(long delayInMs, String routingKey, Object msg) {
+    var props =
+        new BasicProperties().builder().contentType("application/json").contentEncoding("UTF-8");
+    byte[] body = new byte[0];
+    try {
+      body = om().writeValueAsBytes(msg);
+    } catch (JsonProcessingException e) {
+      log.error("publishJson error", e);
+    }
+    publishWithDelay(delayInMs, props.build(), body);
   }
 
   /** 默认的 ObjectMapper, 也可以通过 setter 进行定制 */
@@ -175,6 +188,7 @@ public class Hutch {
     return consumers().stream().map(HutchConsumer::queue).collect(Collectors.toSet());
   }
 
+  @Override
   public Hutch start() {
     if (this.isStarted) {
       return this;
@@ -243,6 +257,7 @@ public class Hutch {
     this.hutchConsumers.put(hc.queue(), scl);
   }
 
+  @Override
   public void stop() {
     log.info("Stop Hutch");
     try {

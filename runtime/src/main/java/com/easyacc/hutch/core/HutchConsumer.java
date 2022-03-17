@@ -59,6 +59,16 @@ public interface HutchConsumer {
     return Map.of();
   }
 
+  /** 根据当前的 routing key, 发送一个消息 */
+  default <T> void enqueue(T t) {
+    Hutch.publishJson(this.routingKey(), t);
+  }
+
+  /** 根据当前 routing key 以及设置的延迟, 计算固定梯度延迟, 发送一个消息 */
+  default <T> void enqueueIn(long delayInMs, T t) {
+    Hutch.publishJsonWithDelay(delayInMs, this.routingKey(), t);
+  }
+
   /** 具体处理消息 */
   void onMessage(Message message);
 }
