@@ -1,5 +1,6 @@
 package com.easyacc.hutch;
 
+import com.easyacc.hutch.config.HutchConfig;
 import com.easyacc.hutch.core.HutchConsumer;
 import com.easyacc.hutch.util.HutchUtils;
 import com.easyacc.hutch.util.HutchUtils.Gradient;
@@ -11,7 +12,6 @@ import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.rabbitmq.client.AMQP.BasicProperties;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
-import io.quarkiverse.rabbitmqclient.RabbitMQClient;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -45,7 +45,7 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 public class Hutch {
-  public static final String HUTCH_EXCHANGE = "com/easyacc/hutch";
+  public static final String HUTCH_EXCHANGE = "hutch";
   public static final String HUTCH_SCHEDULE_EXCHANGE = "hutch.schedule";
 
   /** 用于 queue 前缀的应用名, 因为 Quarkus 的 CDI 的机制, 现在需要在 HutchConsumer 初始化之前就设置好, 例如 static {} 代码块中 */
@@ -56,12 +56,8 @@ public class Hutch {
   @Setter private static ObjectMapper objectMapper;
 
   private final Map<String, List<SimpleConsumer>> hutchConsumers;
-  /**
-   * 需要的是 Java SDK 的 RabbitMQ Client, 暂时不能使用 smallrye-reactive-messaging 所支持的 RabbitMQ 的 Connection,
-   * 因为 sm-ra-ms 走的是 Reactive 的异步响应模式, 相比与 Java SDK 提供的同步线程模式有很大的区别, 其提供的 API 也非常不一样, 在弄明白如如何与现有
-   * Thread Pool 方式进行整合之前, 不太合适借用 sm-ra-ms 的 SDK
-   */
-  RabbitMQClient client;
+
+  private final HutchConfig config;
 
   /** Hutch 默认的 Channel, 主要用于消息发送 */
   @Getter private Channel ch;
@@ -69,8 +65,8 @@ public class Hutch {
   private Connection conn;
   private boolean isStarted = false;
 
-  public Hutch(RabbitMQClient client) {
-    this.client = client;
+  public Hutch(HutchConfig config) {
+    this.config = config;
     this.hutchConsumers = new HashMap<>();
   }
 
@@ -202,7 +198,7 @@ public class Hutch {
   /** 给 Hutch 进行默认的连接 */
   @SneakyThrows
   protected void connect() {
-    this.conn = client.connect();
+    this.conn = this.newConnect("hutch");
     this.ch = conn.createChannel();
   }
 
@@ -239,7 +235,7 @@ public class Hutch {
     // Ref: https://github.com/rabbitmq/rabbitmq-perf-test/issues/93
     // 可以考虑每为每一个 Queue 设置一个连接的 Connection, 因为一个 Connection 对应一个 TCP 连接, 而有的时候
     // 一个 TCP 连接的吞吐量是有限的, 所以可以建立多个连接.
-    var conn = client.connect(hc.queue() + "_conn");
+    var conn = this.newConnect(hc.queue() + "_conn");
     var scl = new LinkedList<SimpleConsumer>();
     for (var i = 0; i < hc.concurrency(); i++) {
       scl.add(consumeHutchConsumer(conn, hc));
@@ -260,6 +256,10 @@ public class Hutch {
       RabbitUtils.closeConnection(this.conn);
       this.isStarted = false;
     }
+  }
+
+  private Connection newConnect(String name) {
+    return RabbitUtils.connect(this.config, name);
   }
 
   /** 根据 Conn 在 RabbitMQ 上订阅一个队列进行消费 */

@@ -18,6 +18,7 @@ class HutchProcessorTest {
       new QuarkusUnitTest()
           .overrideConfigKey("quarkus.application.name", "hutch-app")
           .overrideConfigKey("quarkus.hutch.name", "lake_web")
+          .overrideConfigKey("quarkus.hutch.virtual-host", "test")
           //                    .overrideConfigKey("quarkus.log.level", "debug")
           .withApplicationRoot(jar -> jar.addClass(AbcConsumer.class).addClass(BbcConsumer.class));
 
@@ -43,8 +44,10 @@ class HutchProcessorTest {
   }
 
   @Test
-  void testHutchConfig() {
+  void testHutchConfig() throws InterruptedException {
     assertThat(cfg.name).isEqualTo("lake_web");
     assertThat(Hutch.name()).isEqualTo("lake_web");
+    new Hutch(cfg).start();
+    Thread.sleep(2000);
   }
 }

@@ -14,7 +14,7 @@ import java.util.Map;
  * [x] 4. 将 Hutch 的配置直接集成到 quarkus 的配置中.<br>
  * 插件<br>
  * [ ] 5. 初始化好 Hutch, 让其自动连接 mq. (类似 {@link io.quarkus.scheduler.runtime.SimpleScheduler})<br>
- * [ ] 6. 考虑将 RabbitMQ Client 由自己的插件解决, 而不需要 rabbitmq-client<br>
+ * [x] 6. 考虑将 RabbitMQ Client 由自己的插件解决, 而不需要 rabbitmq-client<br>
  * [x] 7. 取消掉 AbstractHutchConsumer 类<br>
  * <br>
  * 一个 HutchConsumer, 只消耗一个队列.
