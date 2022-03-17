@@ -193,7 +193,6 @@ public class Hutch implements IHutch {
     if (this.isStarted) {
       return this;
     }
-    currentHutch = this;
     try {
       connect();
       declearExchanges();
@@ -209,9 +208,12 @@ public class Hutch implements IHutch {
     return this;
   }
 
-  /** 给 Hutch 进行默认的连接 */
+  /** 初始化 Hutch 自己使用的默认操作进行连接 */
   @SneakyThrows
-  protected void connect() {
+  public void connect() {
+    if (currentHutch == null) {
+      currentHutch = this;
+    }
     this.conn = this.newConnect("hutch");
     this.ch = conn.createChannel();
   }

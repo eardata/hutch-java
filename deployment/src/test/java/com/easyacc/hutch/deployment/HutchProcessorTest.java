@@ -6,6 +6,7 @@ import com.easyacc.hutch.Hutch;
 import com.easyacc.hutch.config.HutchConfig;
 import com.easyacc.hutch.core.HutchConsumer;
 import io.quarkus.test.QuarkusUnitTest;
+import java.io.IOException;
 import javax.enterprise.inject.spi.CDI;
 import javax.inject.Inject;
 import org.junit.jupiter.api.Test;
@@ -23,7 +24,7 @@ class HutchProcessorTest {
           .withApplicationRoot(jar -> jar.addClass(AbcConsumer.class).addClass(BbcConsumer.class));
 
   @Inject AbcConsumer abcConsumer;
-  @Inject HutchConfig cfg;
+  @Inject HutchConfig cg;
 
   @Test
   void testHutchConsumerAllInCDI() {
@@ -51,9 +52,9 @@ class HutchProcessorTest {
   }
 
   @Test
-  void testHutchConfig() throws InterruptedException {
-    var config = CDI.current().select(HutchConfig.class).get();
-    assertThat(config).isNotNull();
+  void testHutchConfig() throws InterruptedException, IOException {
+    var cfg = CDI.current().select(HutchConfig.class).get();
+    assertThat(cfg).isNotNull();
 
     assertThat(cfg.name).isEqualTo("lake_web");
     assertThat(Hutch.name()).isEqualTo("lake_web");
@@ -61,5 +62,17 @@ class HutchProcessorTest {
     assertThat(h.isStarted()).isTrue();
     h.stop();
     assertThat(h.isStarted()).isFalse();
+  }
+
+  @Test
+  void testEnqueue() throws IOException, InterruptedException {
+    var h = new Hutch(cg);
+    h.connect();
+    var q = h.getCh().queueDeclarePassive(abcConsumer.queue());
+    var qc = q.getMessageCount();
+    abcConsumer.enqueue("abc");
+    Thread.sleep(100);
+    q = h.getCh().queueDeclarePassive(abcConsumer.queue());
+    assertThat(q.getMessageCount()).isEqualTo(qc + 1);
   }
 }
