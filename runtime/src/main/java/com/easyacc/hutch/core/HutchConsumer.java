@@ -16,6 +16,7 @@ import java.util.Map;
  * [ ] 5. 初始化好 Hutch, 让其自动连接 mq. (类似 {@link io.quarkus.scheduler.runtime.SimpleScheduler})<br>
  * [x] 6. 考虑将 RabbitMQ Client 由自己的插件解决, 而不需要 rabbitmq-client<br>
  * [x] 7. 取消掉 AbstractHutchConsumer 类<br>
+ * [ ] 8. 增加 RabbitMQ java Sdk 中的 MetricsCollector, 方便用于统计执行数据以及测试<br>
  * <br>
  * 一个 HutchConsumer, 只消耗一个队列.
  *
