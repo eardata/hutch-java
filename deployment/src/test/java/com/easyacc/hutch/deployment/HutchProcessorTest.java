@@ -12,7 +12,6 @@ import javax.inject.Inject;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
-/** Created by IntelliJ IDEA. User: wyatt Date: 2022/3/15 Time: 16:44 */
 class HutchProcessorTest {
   @RegisterExtension
   static final QuarkusUnitTest config =
