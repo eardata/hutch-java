@@ -1,5 +1,6 @@
 package com.easyacc.hutch.util;
 
+import com.easyacc.hutch.Hutch;
 import com.easyacc.hutch.config.HutchConfig;
 import com.rabbitmq.client.AlreadyClosedException;
 import com.rabbitmq.client.Channel;
@@ -30,6 +31,7 @@ public class RabbitUtils {
     cf.setUsername(config.username);
     cf.setPassword(config.password);
     cf.setVirtualHost(config.virtualHost);
+    log.info("Hutch({}) connect to RabbitMQ: {}", Hutch.name(), config.getUri());
     return cf.newConnection(HutchConfig.getSharedExecutor(), name);
   }
 

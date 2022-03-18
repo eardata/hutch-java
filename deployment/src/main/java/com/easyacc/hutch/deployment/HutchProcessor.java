@@ -31,7 +31,7 @@ class HutchProcessor {
   /** 构建期将标记有 @HutchConsumer 的元素设置为 SINGLETON 的 scope */
   @BuildStep
   AutoAddScopeBuildItem autoAddScope() {
-    LOGGER.info("run autoAddScope to add HutchConsumer to CDI");
+    LOGGER.debug("run autoAddScope to add HutchConsumer to CDI");
     return AutoAddScopeBuildItem.builder()
         .unremovable()
         .implementsInterface(HUTCH_CONSUMER_NAME)
@@ -50,7 +50,6 @@ class HutchProcessor {
   @BuildStep
   @Record(ExecutionTime.STATIC_INIT)
   void setUpHutchInstance(HutchRecorder recorder, BuildProducer<SyntheticBeanBuildItem> sbi) {
-    LOGGER.info(recorder.getConfig());
     recorder.initHutchName();
     var hb =
         SyntheticBeanBuildItem.configure(IHutch.class)

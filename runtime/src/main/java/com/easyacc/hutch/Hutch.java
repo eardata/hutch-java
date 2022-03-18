@@ -201,11 +201,12 @@ public class Hutch implements IHutch {
     try {
       connect();
       declearExchanges();
-      log.info("Start Hutch with queues: {}", Hutch.queues());
+      var queues = Hutch.queues();
+      log.info("Start Hutch with queues({}): {}", queues.size(), queues);
       for (var hc : Hutch.consumers()) {
         declearHutchConsumQueue(hc);
         initHutchConsumer(hc);
-        log.info("Connect to {}", hc.queue());
+        log.debug("Connect to {}", hc.queue());
       }
     } finally {
       this.isStarted = true;

@@ -52,4 +52,9 @@ public class HutchConfig {
       return sharedExecutor;
     }
   }
+
+  /** 获取 RabbitMQ 的 uri, 暂时不支持 tls */
+  public String getUri() {
+    return String.format("amqp://%s:*@%s:%d/%s", username, hostname, port, virtualHost);
+  }
 }
