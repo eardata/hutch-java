@@ -256,7 +256,7 @@ public class Hutch implements IHutch {
   protected void declearhutchConsumerQueues() {
     var queues = Hutch.queues();
     log.info(
-        "Start Hutch({} executor) with queues({}): {}",
+        "Start Hutch ({}) with queues({}): {}",
         HutchConfig.getSharedExecutor().getClass().getSimpleName(),
         queues.size(),
         queues);
