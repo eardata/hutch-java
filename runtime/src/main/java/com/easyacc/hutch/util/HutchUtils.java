@@ -1,10 +1,35 @@
 package com.easyacc.hutch.util;
 
+import com.easyacc.hutch.Hutch;
+import com.easyacc.hutch.core.HutchConsumer;
 import com.google.common.base.CaseFormat;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
+import javax.enterprise.inject.spi.CDI;
+import lombok.extern.slf4j.Slf4j;
 
-/** Created by IntelliJ IDEA. User: wyatt Date: 2022/3/6 Time: 07:29 */
+@Slf4j
 public class HutchUtils {
+  /** 为 Queue 添加统一的 App 前缀 */
+  public static String prefixQueue(String queue) {
+    return String.format("%s_%s", Hutch.name(), queue);
+  }
+
+  /** 根据 queue 从 ioc 容器中寻找已经通过 DI 处理好依赖的 HutchConsumer 实例 */
+  public static Optional<HutchConsumer> findHutchConsumerBean(Class<?> bean) {
+    try {
+      var hc = (HutchConsumer) CDI.current().select(bean).get();
+      if (hc == null) {
+        log.warn("Queue {} has no HutchConsumer", bean.getSimpleName());
+        return Optional.empty();
+      }
+      return Optional.of(hc);
+    } catch (IllegalArgumentException e) {
+      log.error("Queue 拥有多个 Bean: {}, 需要区分名称", bean.getSimpleName());
+    }
+    return Optional.empty();
+  }
+
   public static String upCamelToLowerUnderscore(String uperCamel) {
     return CaseFormat.UPPER_CAMEL.to(CaseFormat.LOWER_UNDERSCORE, uperCamel);
   }

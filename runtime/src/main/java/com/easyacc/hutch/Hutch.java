@@ -13,12 +13,12 @@ import com.rabbitmq.client.AMQP.BasicProperties;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import java.io.IOException;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -75,11 +75,6 @@ public class Hutch implements IHutch {
     return APP_NAME;
   }
 
-  /** 为 Queue 添加统一的 App 前缀 */
-  public static String prefixQueue(String queue) {
-    return String.format("%s_%s", Hutch.name(), queue);
-  }
-
   /** 使用 fixedDelay (ms) 的 routing_key. ex: hutch.exchange.5s */
   public static String delayRoutingKey(long fixedDelay) {
     return String.format(
@@ -87,15 +82,21 @@ public class Hutch implements IHutch {
         HUTCH_SCHEDULE_EXCHANGE, TimeUnit.SECONDS.convert(fixedDelay, TimeUnit.MILLISECONDS));
   }
 
+  /** 发送字符串 - HutchConsumer */
   public static void publish(Class<? extends HutchConsumer> consumer, String msg) {
-    var props = new BasicProperties().builder().contentType("text/plain").contentEncoding("UTF-8");
-    publish(HutchConsumer.rk(consumer), props.build(), msg.getBytes());
+    publish(HutchConsumer.rk(consumer), msg);
   }
 
   /** 发送字符串 */
   public static void publish(String routingKey, String msg) {
     var props = new BasicProperties().builder().contentType("text/plain").contentEncoding("UTF-8");
     publish(routingKey, props.build(), msg.getBytes());
+  }
+
+  /** 最原始的发送 bytes - HutchConsumer */
+  public static void publish(
+      Class<? extends HutchConsumer> consumer, BasicProperties props, byte[] body) {
+    publish(HutchConsumer.rk(consumer), props, body);
   }
 
   /** 最原始的发送 bytes */
@@ -119,12 +120,10 @@ public class Hutch implements IHutch {
     }
   }
 
-  /** 向延迟队列中发布消息 */
-  public static void publishWithDelay(long delayInMs, BasicProperties props, byte[] body) {
-    var fixDelay = HutchUtils.fixDealyTime(delayInMs);
-    publish(Hutch.HUTCH_SCHEDULE_EXCHANGE, Hutch.delayRoutingKey(fixDelay), props, body);
+  /** 直接当做 JSON 发送 - HutchConsumer */
+  public static void publishJson(Class<? extends HutchConsumer> consumer, Object msg) {
+    publishJson(HutchConsumer.rk(consumer), msg);
   }
-
   /** 直接当做 JSON 发送 */
   public static void publishJson(String routingKey, Object msg) {
     var props =
@@ -138,19 +137,42 @@ public class Hutch implements IHutch {
     publish(routingKey, props.build(), body);
   }
 
+  /** 向 routing-key 对应的队列发送一个延迟消息 - HutchConsumer */
+  public static void publishJsonWithDelay(
+      long delayInMs, Class<? extends HutchConsumer> consumer, Object msg) {
+    publishJsonWithDelay(delayInMs, HutchConsumer.rk(consumer), msg);
+  }
+
+  /**
+   * 向 routing-key 对应的队列发送一个延迟消息
+   *
+   * @param delayInMs 梯度延迟的时间, 单位 ms
+   * @param routingKey 消息的 routing-key
+   * @param msg 具体的 json 格式的消息体
+   */
   public static void publishJsonWithDelay(long delayInMs, String routingKey, Object msg) {
     var props =
-        new BasicProperties().builder().contentType("application/json").contentEncoding("UTF-8");
-    byte[] body = new byte[0];
+        new BasicProperties()
+            .builder()
+            .contentType("application/json")
+            .headers(Collections.singletonMap("CC", List.of(routingKey)))
+            .contentEncoding("UTF-8");
+    byte[] body;
     try {
       body = om().writeValueAsBytes(msg);
+      internalPublishWithDelay(delayInMs, props.build(), body);
     } catch (JsonProcessingException e) {
       log.error("publishJson error", e);
     }
-    publishWithDelay(delayInMs, props.build(), body);
   }
 
-  /** 默认的 ObjectMapper, 也可以通过 setter 进行定制 */
+  /** 向延迟队列中发布消息 */
+  static void internalPublishWithDelay(long delayInMs, BasicProperties props, byte[] body) {
+    var fixDelay = HutchUtils.fixDealyTime(delayInMs);
+    publish(Hutch.HUTCH_SCHEDULE_EXCHANGE, Hutch.delayRoutingKey(fixDelay), props, body);
+  }
+
+  /** Hutch 自己使用的 ObjectMapper, 也可以通过 setter 进行定制 */
   public static ObjectMapper om() {
     if (Hutch.objectMapper == null) {
       var objectMapper = new ObjectMapper();
@@ -161,26 +183,11 @@ public class Hutch implements IHutch {
     return Hutch.objectMapper;
   }
 
-  /** 根据 queue 从 ioc 容器中寻找已经通过 DI 处理好依赖的 HutchConsumer 实例 */
-  public static Optional<HutchConsumer> findHutchConsumerBean(Class<?> bean) {
-    try {
-      var hc = (HutchConsumer) CDI.current().select(bean).get();
-      if (hc == null) {
-        log.warn("Queue {} has no HutchConsumer", bean.getSimpleName());
-        return Optional.empty();
-      }
-      return Optional.of(hc);
-    } catch (IllegalArgumentException e) {
-      log.error("Queue 拥有多个 Bean: {}, 需要区分名称", bean.getSimpleName());
-    }
-    return Optional.empty();
-  }
-
   public static Set<HutchConsumer> consumers() {
     var beans = CDI.current().getBeanManager().getBeans(HutchConsumer.class);
     var queues = new HashSet<HutchConsumer>();
     for (var bean : beans) {
-      var hco = findHutchConsumerBean(bean.getBeanClass());
+      var hco = HutchUtils.findHutchConsumerBean(bean.getBeanClass());
       if (hco.isEmpty()) {
         continue;
       }
@@ -201,13 +208,8 @@ public class Hutch implements IHutch {
     try {
       connect();
       declearExchanges();
-      var queues = Hutch.queues();
-      log.info("Start Hutch with queues({}): {}", queues.size(), queues);
-      for (var hc : Hutch.consumers()) {
-        declearHutchConsumQueue(hc);
-        initHutchConsumer(hc);
-        log.debug("Connect to {}", hc.queue());
-      }
+      declearScheduleQueues();
+      declearhutchConsumerQueues();
     } finally {
       this.isStarted = true;
     }
@@ -225,32 +227,48 @@ public class Hutch implements IHutch {
     this.ch = conn.createChannel();
   }
 
+  protected void declearExchanges() {
+    try {
+      this.ch.exchangeDeclare(HUTCH_EXCHANGE, "topic", true);
+      this.ch.exchangeDeclare(HUTCH_SCHEDULE_EXCHANGE, "topic", true);
+    } catch (Exception e) {
+      // ignore
+      log.error("Declare exchange error", e);
+    }
+  }
+
+  protected void declearScheduleQueues() {
+    // 初始化 delay queue 相关的信息
+    var delayQueueArgs = new HashMap<String, Object>();
+    // TODO: 可以考虑 x-message-ttl 为每个队列自己的超时时间, 这里设置成 30 天没有太大意义. (需要与 hutch-schedule 进行迁移)
+    delayQueueArgs.put("x-message-ttl", TimeUnit.DAYS.toMillis(30));
+    delayQueueArgs.put("x-dead-letter-exchange", HUTCH_EXCHANGE);
+    for (var g : Gradient.values()) {
+      try {
+        this.ch.queueDeclare(g.queue(), true, false, false, delayQueueArgs);
+        this.ch.queueBind(g.queue(), HUTCH_SCHEDULE_EXCHANGE, Hutch.delayRoutingKey(g.fixdDelay()));
+      } catch (Exception e) {
+        log.error("Declare delay queue {} error", g.queue(), e);
+      }
+    }
+  }
+
+  protected void declearhutchConsumerQueues() {
+    var queues = Hutch.queues();
+    log.info("Start Hutch with queues({}): {}", queues.size(), queues);
+    for (var hc : Hutch.consumers()) {
+      declearHutchConsumQueue(hc);
+      initHutchConsumer(hc);
+      log.debug("Connect to {}", hc.queue());
+    }
+  }
+
   protected void declearHutchConsumQueue(HutchConsumer hc) {
     try {
       this.ch.queueDeclare(hc.queue(), true, false, false, hc.queueArguments());
       this.ch.queueBind(hc.queue(), HUTCH_EXCHANGE, hc.routingKey());
     } catch (Exception e) {
       log.error("Declare queues error", e);
-    }
-  }
-
-  protected void declearExchanges() {
-    try {
-      this.ch.exchangeDeclare(HUTCH_EXCHANGE, "topic", true);
-      this.ch.exchangeDeclare(HUTCH_SCHEDULE_EXCHANGE, "topic", true);
-
-      // 初始化 delay queue 相关的信息
-      var delayQueueArgs = new HashMap<String, Object>();
-      // TODO: 可以考虑 x-message-ttl 为每个队列自己的超时时间, 这里设置成 30 天没有太大意义. (需要与 hutch-schedule 进行迁移)
-      delayQueueArgs.put("x-message-ttl", TimeUnit.DAYS.toMillis(30));
-      delayQueueArgs.put("x-dead-letter-exchange", HUTCH_EXCHANGE);
-      for (var g : Gradient.values()) {
-        this.ch.queueDeclare(g.queue(), true, false, false, delayQueueArgs);
-        this.ch.queueBind(g.queue(), HUTCH_SCHEDULE_EXCHANGE, Hutch.delayRoutingKey(g.fixdDelay()));
-      }
-    } catch (Exception e) {
-      // ignore
-      log.error("Declare exchange error", e);
     }
   }
 

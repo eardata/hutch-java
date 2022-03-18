@@ -47,6 +47,7 @@ class SimpleConsumer extends DefaultConsumer {
     callHutchConsumer(message, deliveryTag);
   }
 
+  /** 具体调用 HutchConsumer 实例类的 onMessage 方法以及错误相关的处理入口 */
   private void callHutchConsumer(Message msg, long deliveryTag) {
     try {
       this.hutchConsumer.onMessage(msg);
@@ -58,7 +59,7 @@ class SimpleConsumer extends DefaultConsumer {
       var props = msg.getMessageProperties();
       var retryCount = getXDeathLatestCount(props);
       if (retryCount < hutchConsumer.maxRetry()) {
-        publishWithDelay(msg, backoffDelay(retryCount));
+        publishWithDelay(backoffDelay(retryCount), msg);
       } else {
         log.info(
             "message retry count ({}) reach max ({}), ignore message",
@@ -81,10 +82,11 @@ class SimpleConsumer extends DefaultConsumer {
     return (long) (Math.pow(3, retryCount) + 2) * 1000;
   }
 
-  public void publishWithDelay(Message msg, long delayInMs) {
+  public void publishWithDelay(long delayInMs, Message msg) {
+    Hutch.internalPublishWithDelay(
+        delayInMs, convertToDelayProps(msg.getMessageProperties(), delayInMs), msg.getBody());
+
     var fixDelay = HutchUtils.fixDealyTime(delayInMs);
-    Hutch.publishWithDelay(
-        fixDelay, convertToDelayProps(msg.getMessageProperties(), delayInMs), msg.getBody());
     log.debug(
         "publish with delay {} using routing_key {} and origin routing_key: {}",
         fixDelay,
@@ -92,7 +94,7 @@ class SimpleConsumer extends DefaultConsumer {
         this.hutchConsumer.routingKey());
   }
 
-  /** 处理 Delay Message 需要处理的 header 信息等等 */
+  /** 处理 Delay Message 需要处理的 header 信息等等, 保留原来消息中的 props header 等信息 */
   public BasicProperties convertToDelayProps(MessageProperties props, long delay) {
     var fixDelay = HutchUtils.fixDealyTime(delay);
     props.setExpiration(fixDelay + "");

@@ -28,7 +28,7 @@ public interface HutchConsumer {
 
   /** 静态方法提供 routing key 计算支持 */
   static String rk(Class<? extends HutchConsumer> clazz) {
-    return Hutch.prefixQueue(queueName(clazz));
+    return HutchUtils.prefixQueue(queueName(clazz));
   }
 
   private static String queueName(Class<?> clazz) {
@@ -49,7 +49,7 @@ public interface HutchConsumer {
 
   /** 绑定的队列名称(down case). default: <Hutch.name>_clazz.simpleName */
   default String queue() {
-    return Hutch.prefixQueue(queueName(getClass()));
+    return HutchUtils.prefixQueue(queueName(getClass()));
   }
 
   /** 最大重试; default: 1 */
