@@ -1,6 +1,9 @@
-# Hutch-java
+# Hutch
 
-与 https://github.com/wppurking/hutch-schedule 类似, 只是在 Quarkus 平台上 Java 的实现.
+Hutch 是一个利用 quarkus extension 的方式实现的与 https://github.com/wppurking/hutch-schedule 兼容的后端消息任务处理库.
+
+其设计为利用 RabbitMQ 的 topic exchange 进行消息交互, 利用 classic queue 的 DLX + message ttl 机制进行消息重投的类似后端任务系统.
+消息定时采取的是梯度式的延时, 因为 RabbitMQ 的限制无法保证秒级别的精准, 只拥有固定梯度的定时延迟.
 
 ## 安装
 
