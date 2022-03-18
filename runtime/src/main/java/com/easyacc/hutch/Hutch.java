@@ -87,6 +87,11 @@ public class Hutch implements IHutch {
         HUTCH_SCHEDULE_EXCHANGE, TimeUnit.SECONDS.convert(fixedDelay, TimeUnit.MILLISECONDS));
   }
 
+  public static void publish(Class<? extends HutchConsumer> consumer, String msg) {
+    var props = new BasicProperties().builder().contentType("text/plain").contentEncoding("UTF-8");
+    publish(HutchConsumer.rk(consumer), props.build(), msg.getBytes());
+  }
+
   /** 发送字符串 */
   public static void publish(String routingKey, String msg) {
     var props = new BasicProperties().builder().contentType("text/plain").contentEncoding("UTF-8");

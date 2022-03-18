@@ -69,9 +69,12 @@ class HutchProcessorTest {
     h.connect();
     var q = h.getCh().queueDeclarePassive(abcConsumer.queue());
     var qc = q.getMessageCount();
+
     abcConsumer.enqueue("abc");
+    Hutch.publish(AbcConsumer.class, "ccc");
+
     Thread.sleep(100);
     q = h.getCh().queueDeclarePassive(abcConsumer.queue());
-    assertThat(q.getMessageCount()).isEqualTo(qc + 1);
+    assertThat(q.getMessageCount()).isEqualTo(qc + 2);
   }
 }

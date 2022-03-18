@@ -26,6 +26,17 @@ import java.util.Map;
 @Unremovable
 public interface HutchConsumer {
 
+  /** 静态方法提供 routing key 计算支持 */
+  static String rk(Class<? extends HutchConsumer> clazz) {
+    return Hutch.prefixQueue(queueName(clazz));
+  }
+
+  private static String queueName(Class<?> clazz) {
+    return HutchUtils.upCamelToLowerUnderscore(clazz.getSimpleName())
+        // 清理, 只留下需要的名字, 去除后缀
+        .replace("__subclass", "");
+  }
+
   /** 每一个 Channel 能够拥有的 prefech, 避免单个 channel 积累太多任务. default: 2 */
   default int prefetch() {
     return 2;
@@ -38,11 +49,7 @@ public interface HutchConsumer {
 
   /** 绑定的队列名称(down case). default: <Hutch.name>_clazz.simpleName */
   default String queue() {
-    var clazz =
-        HutchUtils.upCamelToLowerUnderscore(getClass().getSimpleName())
-            // 清理, 只留下需要的名字, 去除后缀
-            .replace("__subclass", "");
-    return Hutch.prefixQueue(clazz);
+    return Hutch.prefixQueue(queueName(getClass()));
   }
 
   /** 最大重试; default: 1 */
