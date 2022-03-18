@@ -55,6 +55,10 @@ public class HutchConfig {
 
   /** 获取 RabbitMQ 的 uri, 暂时不支持 tls */
   public String getUri() {
-    return String.format("amqp://%s:*@%s:%d/%s", username, hostname, port, virtualHost);
+    var vh = virtualHost;
+    if (virtualHost.equals("/")) {
+      vh = "";
+    }
+    return String.format("amqp://%s:*@%s:%d/%s", username, hostname, port, vh);
   }
 }

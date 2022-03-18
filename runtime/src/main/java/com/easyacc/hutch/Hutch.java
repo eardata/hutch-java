@@ -220,6 +220,7 @@ public class Hutch implements IHutch {
     if (currentHutch == null) {
       currentHutch = this;
     }
+    log.info("Hutch({}) connect to RabbitMQ: {}", Hutch.name(), config.getUri());
     this.conn = this.newConnect("hutch");
     this.ch = conn.createChannel();
   }
