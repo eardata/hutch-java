@@ -6,17 +6,13 @@ import io.quarkus.arc.Unremovable;
 import java.util.Map;
 
 /**
- * TODO: 可以考虑迁移到 Quarkus extension, 可以在 compile 阶段:<br>
- * [x] 1. 自动扫描 class 级别的 @HutchConsumer 注解, 自动将 Bean 放到容器中<br>
- * [ ] 2. 寻找 @HutchConsumer 方法级别注解, 自动生成 Class, 并将 class 放到容器中, 相关参数都可以放到注解上, 并且方法中传递的类自动反序列化(json).
+ * 新一个阶段的实现任务:<br>
+ * [ ] 1. 寻找 @HutchListener 方法级别注解, 自动生成 Class, 并将 class 放到容器中, 相关参数都可以放到注解上, 并且方法中传递的类自动反序列化(json).
  * 然后交给 Hutch 最终来初始化 <br>
- * [x] 3. 设置好 Hutch 实例的 APP_NAME<br>
- * [x] 4. 将 Hutch 的配置直接集成到 quarkus 的配置中.<br>
- * 插件<br>
- * [ ] 5. 初始化好 Hutch, 让其自动连接 mq. (类似 {@link io.quarkus.scheduler.runtime.SimpleScheduler})<br>
- * [x] 6. 考虑将 RabbitMQ Client 由自己的插件解决, 而不需要 rabbitmq-client<br>
- * [x] 7. 取消掉 AbstractHutchConsumer 类<br>
- * [ ] 8. 增加 RabbitMQ java Sdk 中的 MetricsCollector, 方便用于统计执行数据以及测试<br>
+ * [ ] 2. 初始化好 Hutch, 让其自动连接 mq. (类似 {@link io.quarkus.scheduler.runtime.SimpleScheduler})<br>
+ * [ ] 3. 增加 RabbitMQ java Sdk 中的 MetricsCollector, 方便用于统计执行数据以及测试<br>
+ * [ ] 4. 考虑增加进程级别限速功能, 每分钟, 每秒钟消耗多少任务. (应用场景: 后台任务提交, 但对外的访问拥有 api limit 不能无止境重试)<br>
+ * [ ] 5. 考虑增加全局级别限速功能, 每分钟, 每秒钟消耗多少任务. (应用场景: 上面场景到 k8s 中多个实例)<br>
  * <br>
  * 一个 HutchConsumer, 只消耗一个队列.
  *
