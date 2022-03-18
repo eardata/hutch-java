@@ -57,7 +57,7 @@ public class Hutch implements IHutch {
 
   private final Map<String, List<SimpleConsumer>> hutchConsumers;
 
-  private final HutchConfig config;
+  @Getter private final HutchConfig config;
 
   /** Hutch 默认的 Channel, 主要用于消息发送 */
   @Getter private Channel ch;

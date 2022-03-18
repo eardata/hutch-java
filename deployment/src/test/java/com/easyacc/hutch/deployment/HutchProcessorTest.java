@@ -14,7 +14,7 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 
 class HutchProcessorTest {
   @RegisterExtension
-  static final QuarkusUnitTest config =
+  static final QuarkusUnitTest app =
       new QuarkusUnitTest()
           .overrideConfigKey("quarkus.application.name", "hutch-app")
           .overrideConfigKey("quarkus.hutch.name", "lake_web")
@@ -23,7 +23,7 @@ class HutchProcessorTest {
           .withApplicationRoot(jar -> jar.addClass(AbcConsumer.class).addClass(BbcConsumer.class));
 
   @Inject AbcConsumer abcConsumer;
-  @Inject HutchConfig cg;
+  @Inject HutchConfig config;
 
   @Test
   void testHutchConsumerAllInCDI() {
@@ -65,7 +65,7 @@ class HutchProcessorTest {
 
   @Test
   void testEnqueue() throws IOException, InterruptedException {
-    var h = new Hutch(cg);
+    var h = new Hutch(config);
     h.connect();
     var q = h.getCh().queueDeclarePassive(abcConsumer.queue());
     var qc = q.getMessageCount();
@@ -76,5 +76,13 @@ class HutchProcessorTest {
     Thread.sleep(100);
     q = h.getCh().queueDeclarePassive(abcConsumer.queue());
     assertThat(q.getMessageCount()).isEqualTo(qc + 2);
+  }
+
+  @Test
+  void testAdditionalBean() {
+    var s = CDI.current().select(Hutch.class).get();
+    assertThat(s).isNotNull();
+    assertThat(s.isStarted()).isFalse();
+    assertThat(s.getConfig()).isEqualTo(config);
   }
 }

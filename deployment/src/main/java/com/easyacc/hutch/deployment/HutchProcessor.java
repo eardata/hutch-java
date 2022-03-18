@@ -1,19 +1,16 @@
 package com.easyacc.hutch.deployment;
 
-import com.easyacc.hutch.IHutch;
+import com.easyacc.hutch.Hutch;
 import com.easyacc.hutch.config.HutchRecorder;
 import com.easyacc.hutch.core.HutchConsumer;
+import io.quarkus.arc.deployment.AdditionalBeanBuildItem;
 import io.quarkus.arc.deployment.AutoAddScopeBuildItem;
-import io.quarkus.arc.deployment.SyntheticBeanBuildItem;
 import io.quarkus.arc.deployment.UnremovableBeanBuildItem;
-import io.quarkus.arc.processor.BuiltinScope;
-import io.quarkus.deployment.annotations.BuildProducer;
+import io.quarkus.arc.processor.DotNames;
 import io.quarkus.deployment.annotations.BuildStep;
 import io.quarkus.deployment.annotations.ExecutionTime;
 import io.quarkus.deployment.annotations.Record;
 import io.quarkus.deployment.builditem.FeatureBuildItem;
-import javax.enterprise.inject.Default;
-import javax.inject.Singleton;
 import org.jboss.jandex.DotName;
 import org.jboss.logging.Logger;
 
@@ -35,7 +32,7 @@ class HutchProcessor {
     return AutoAddScopeBuildItem.builder()
         .unremovable()
         .implementsInterface(HUTCH_CONSUMER_NAME)
-        .defaultScope(BuiltinScope.SINGLETON)
+        .defaultScope(DotNames.SINGLETON)
         .reason("Found hutch consumer class")
         .build();
   }
@@ -49,19 +46,12 @@ class HutchProcessor {
   /** 在这里读取 HutchConfig 对 Hutch 做一些 static 与 runtime 的设置和初始化. 合并一个 Bean 交给 CDI */
   @BuildStep
   @Record(ExecutionTime.STATIC_INIT)
-  void setUpHutchInstance(HutchRecorder recorder, BuildProducer<SyntheticBeanBuildItem> sbi) {
+  AdditionalBeanBuildItem setUpHutchInstance(HutchRecorder recorder) {
     recorder.initHutchName();
-    var hb =
-        SyntheticBeanBuildItem.configure(IHutch.class)
-            .setRuntimeInit()
-            .scope(Singleton.class)
-            .addQualifier(Default.class)
-            .supplier(recorder::hutchInstance)
-            .done();
-    // Unable to serialize objects of type class
-    // com.easyacc.hutch.deployment.HutchProcessor$$Lambda$565/0x00000008002d3ca0 to bytecode as it
-    // has no default constructor
-    // TODO: 错误 HutchProcessor$$Lambda/xxx has no default constructor
-    //    sbi.produce(hb);
+    return AdditionalBeanBuildItem.builder()
+        .addBeanClass(Hutch.class)
+        .setDefaultScope(DotNames.SINGLETON)
+        .setUnremovable()
+        .build();
   }
 }
