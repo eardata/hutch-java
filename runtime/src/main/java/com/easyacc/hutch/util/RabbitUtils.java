@@ -7,12 +7,20 @@ import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
 import java.io.IOException;
 import java.util.UUID;
+import java.util.function.Supplier;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
 /** Created by IntelliJ IDEA. User: wyatt Date: 2022/2/27 Time: 11:11 */
 @Slf4j
 public class RabbitUtils {
+
+  /**
+   * 默认的 ConnectionFactory 为 RabbitClient 的 ConnectionFactory, 如果需要快速测试, 可以直接通过 static 代码块改变这个为
+   * MockConnectionFactory, 避免连接 RabbitMQ instance
+   */
+  public static Supplier<ConnectionFactory> buildConnectionFactory = ConnectionFactory::new;
+
   /**
    * 需要的是 Java SDK 的 RabbitMQ Client, 暂时不能使用 smallrye-reactive-messaging 所支持的 RabbitMQ 的 Connection,
    * 因为 sm-ra-ms 走的是 Reactive 的异步响应模式, 相比与 Java SDK 提供的同步线程模式有很大的区别, 其提供的 API 也非常不一样, 在弄明白如如何与现有
@@ -24,7 +32,7 @@ public class RabbitUtils {
 
   @SneakyThrows
   public static Connection connect(HutchConfig config, String name) {
-    var cf = new ConnectionFactory();
+    var cf = buildConnectionFactory.get();
     cf.setHost(config.hostname);
     cf.setPort(config.port);
     cf.setUsername(config.username);

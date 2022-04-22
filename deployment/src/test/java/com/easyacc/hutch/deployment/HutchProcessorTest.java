@@ -5,6 +5,8 @@ import static com.google.common.truth.Truth.assertThat;
 import com.easyacc.hutch.Hutch;
 import com.easyacc.hutch.config.HutchConfig;
 import com.easyacc.hutch.core.HutchConsumer;
+import com.easyacc.hutch.util.RabbitUtils;
+import com.github.fridujo.rabbitmq.mock.MockConnectionFactory;
 import io.quarkus.test.QuarkusUnitTest;
 import java.io.IOException;
 import javax.enterprise.inject.spi.CDI;
@@ -21,6 +23,10 @@ class HutchProcessorTest {
           .overrideConfigKey("quarkus.hutch.virtual-host", "test")
           //                    .overrideConfigKey("quarkus.log.level", "debug")
           .withApplicationRoot(jar -> jar.addClass(AbcConsumer.class).addClass(BbcConsumer.class));
+
+  static {
+    RabbitUtils.buildConnectionFactory = MockConnectionFactory::new;
+  }
 
   @Inject AbcConsumer abcConsumer;
   @Inject HutchConfig config;
@@ -66,7 +72,7 @@ class HutchProcessorTest {
   @Test
   void testEnqueue() throws IOException, InterruptedException {
     var h = new Hutch(config);
-    h.connect();
+    h.start();
     var q = h.getCh().queueDeclarePassive(abcConsumer.queue());
     var qc = q.getMessageCount();
 
@@ -76,6 +82,9 @@ class HutchProcessorTest {
     Thread.sleep(100);
     q = h.getCh().queueDeclarePassive(abcConsumer.queue());
     assertThat(q.getMessageCount()).isEqualTo(qc + 2);
+
+    h.stop();
+    assertThat(h.isStarted()).isFalse();
   }
 
   @Test
