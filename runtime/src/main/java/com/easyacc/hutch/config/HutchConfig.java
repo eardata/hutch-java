@@ -1,10 +1,13 @@
 package com.easyacc.hutch.config;
 
+import com.easyacc.hutch.core.ErrorHandler;
+import com.easyacc.hutch.error_handlers.MaxRetry;
 import io.quarkus.runtime.annotations.ConfigItem;
 import io.quarkus.runtime.annotations.ConfigPhase;
 import io.quarkus.runtime.annotations.ConfigRoot;
 import io.quarkus.runtime.annotations.StaticInitSafe;
 import io.smallrye.context.SmallRyeManagedExecutor;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import javax.enterprise.inject.spi.CDI;
@@ -16,6 +19,8 @@ import lombok.ToString;
 @ToString
 public class HutchConfig {
   private static ExecutorService sharedExecutor;
+
+  private static List<ErrorHandler> errorHandlers;
 
   /** Hutch 的 prefix 前缀名称 */
   @ConfigItem(defaultValue = "hutch")
@@ -51,6 +56,14 @@ public class HutchConfig {
       }
       return sharedExecutor;
     }
+  }
+
+  /** 获取默认的 ErrorHandlers, 如果没有初始化, 默认添加 MaxRetry */
+  public static List<ErrorHandler> getErrorHandlers() {
+    if (errorHandlers == null) {
+      errorHandlers = List.of(new MaxRetry());
+    }
+    return errorHandlers;
   }
 
   /** 获取 RabbitMQ 的 uri, 暂时不支持 tls */

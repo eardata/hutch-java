@@ -2,7 +2,6 @@ package com.easyacc.hutch.config;
 
 import com.easyacc.hutch.Hutch;
 import io.quarkus.runtime.annotations.Recorder;
-import java.util.function.Supplier;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
@@ -19,9 +18,5 @@ public class HutchRecorder {
 
   public void initHutchName() {
     Hutch.APP_NAME = this.config.name;
-  }
-
-  public Supplier<Hutch> hutchInstance() {
-    return () -> new Hutch(this.config);
   }
 }

@@ -2,6 +2,10 @@ package com.easyacc.hutch;
 
 import com.easyacc.hutch.config.HutchConfig;
 import com.easyacc.hutch.core.HutchConsumer;
+import com.easyacc.hutch.core.Message;
+import com.easyacc.hutch.core.MessageProperties;
+import com.easyacc.hutch.support.DefaultMessagePropertiesConverter;
+import com.easyacc.hutch.support.MessagePropertiesConverter;
 import com.easyacc.hutch.util.HutchUtils;
 import com.easyacc.hutch.util.HutchUtils.Gradient;
 import com.easyacc.hutch.util.RabbitUtils;
@@ -47,6 +51,8 @@ import lombok.extern.slf4j.Slf4j;
 public class Hutch implements IHutch {
   public static final String HUTCH_EXCHANGE = "hutch";
   public static final String HUTCH_SCHEDULE_EXCHANGE = "hutch.schedule";
+
+  private static final MessagePropertiesConverter MPC = new DefaultMessagePropertiesConverter();
 
   /** 用于 queue 前缀的应用名, 因为 Quarkus 的 CDI 的机制, 现在需要在 HutchConsumer 初始化之前就设置好, 例如 static {} 代码块中 */
   public static String APP_NAME = "hutch";
@@ -166,10 +172,40 @@ public class Hutch implements IHutch {
     }
   }
 
+  /**
+   * 发送 Delay 的 Message
+   *
+   * @param routingKey 具体的路由的 routingKey
+   * @param delayInMs 延迟的时间, 单位 ms
+   * @param msg 具体的 Message 消息
+   */
+  public static void publishMessageWithDelay(long delayInMs, String routingKey, Message msg) {
+    Hutch.internalPublishWithDelay(
+        delayInMs,
+        convertToDelayProps(routingKey, msg.getMessageProperties(), delayInMs),
+        msg.getBody());
+
+    var fixDelay = HutchUtils.fixDealyTime(delayInMs);
+    log.debug(
+        "publish with delay {} using routing_key {} and origin routing_key: {}",
+        fixDelay,
+        Hutch.delayRoutingKey(fixDelay),
+        routingKey);
+  }
+
   /** 向延迟队列中发布消息 */
   static void internalPublishWithDelay(long delayInMs, BasicProperties props, byte[] body) {
     var fixDelay = HutchUtils.fixDealyTime(delayInMs);
     publish(Hutch.HUTCH_SCHEDULE_EXCHANGE, Hutch.delayRoutingKey(fixDelay), props, body);
+  }
+
+  /** 处理 Delay Message 需要处理的 header 信息等等, 保留原来消息中的 props header 等信息 */
+  public static BasicProperties convertToDelayProps(
+      String routingKey, MessageProperties props, long delay) {
+    var fixDelay = HutchUtils.fixDealyTime(delay);
+    props.setExpiration(fixDelay + "");
+    props.setHeader("CC", List.of(routingKey));
+    return getMessagePropertiesConverter().fromMessageProperties(props, "UTF-8");
   }
 
   /** Hutch 自己使用的 ObjectMapper, 也可以通过 setter 进行定制 */
@@ -198,6 +234,10 @@ public class Hutch implements IHutch {
 
   public static Set<String> queues() {
     return consumers().stream().map(HutchConsumer::queue).collect(Collectors.toSet());
+  }
+
+  public static MessagePropertiesConverter getMessagePropertiesConverter() {
+    return MPC;
   }
 
   @Override
@@ -316,7 +356,7 @@ public class Hutch implements IHutch {
     try {
       // 并发处理, 每一个 Consumer 为一个并发
       ch = conn.createChannel();
-      consumer = new SimpleConsumer(ch, hc.queue(), hc);
+      consumer = new SimpleConsumer(ch, hc);
       ch.basicQos(hc.prefetch());
       ch.basicConsume(hc.queue(), autoAck, consumer);
       ch.queueDeclarePassive(hc.queue());

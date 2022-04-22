@@ -3,6 +3,7 @@ package com.easyacc.hutch;
 import static com.google.common.truth.Truth.assertThat;
 
 import com.easyacc.hutch.core.MessageProperties;
+import com.easyacc.hutch.error_handlers.MaxRetry;
 import java.util.HashMap;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -34,10 +35,9 @@ public class SimpleConsumerTest {
     c2.put("routing-keys", List.of("hutch.schedule.5s", "abc_test"));
     props.setHeader("x-death", List.of(c1, c2));
 
-    var s = new SimpleConsumer(null, null, null);
-    assertThat(s.getXDeathLatestCount(props)).isEqualTo(3L);
+    assertThat(MaxRetry.getXDeathLatestCount(props)).isEqualTo(3L);
 
     var props2 = new MessageProperties();
-    assertThat(s.getXDeathLatestCount(props2)).isEqualTo(0L);
+    assertThat(MaxRetry.getXDeathLatestCount(props2)).isEqualTo(0L);
   }
 }
