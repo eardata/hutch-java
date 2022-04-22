@@ -17,7 +17,15 @@ public class RabbitUtils {
 
   /**
    * 默认的 ConnectionFactory 为 RabbitClient 的 ConnectionFactory, 如果需要快速测试, 可以直接通过 static 代码块改变这个为
-   * MockConnectionFactory, 避免连接 RabbitMQ instance
+   * MockConnectionFactory, 避免连接 RabbitMQ instance. 但需要注意 MockConnectionFactory 的一些测试情况:
+   *
+   * <ul>
+   *   <li>其通过内置的 MockNode 在内存中缓存数据
+   *   <li>每一次 newConnection 都会创建一个全新的 MockNode, 这样不会像真实 mq 一样有服务器端同一份数据缓存
+   *   <li>其内部没有使用 DeadLetter 的机制, 所以这些特性无法实现.
+   * </ul>
+   *
+   * 使用 MockConnectionFactory 的建议场景: 仅仅用于测试简单的 Queue 等的 Declare 与同 Connection 的 consumer
    */
   public static Supplier<ConnectionFactory> buildConnectionFactory = ConnectionFactory::new;
 

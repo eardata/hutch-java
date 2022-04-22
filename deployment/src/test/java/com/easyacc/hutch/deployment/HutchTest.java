@@ -5,16 +5,16 @@ import static com.google.common.truth.Truth.assertThat;
 import com.easyacc.hutch.Hutch;
 import com.easyacc.hutch.config.HutchConfig;
 import com.easyacc.hutch.core.HutchConsumer;
-import com.easyacc.hutch.util.RabbitUtils;
-import com.github.fridujo.rabbitmq.mock.MockConnectionFactory;
+import com.easyacc.hutch.error_handlers.NoDelayMaxRetry;
 import io.quarkus.test.QuarkusUnitTest;
 import java.io.IOException;
+import java.util.concurrent.TimeUnit;
 import javax.enterprise.inject.spi.CDI;
 import javax.inject.Inject;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
-class HutchProcessorTest {
+class HutchTest {
   @RegisterExtension
   static final QuarkusUnitTest app =
       new QuarkusUnitTest()
@@ -23,10 +23,6 @@ class HutchProcessorTest {
           .overrideConfigKey("quarkus.hutch.virtual-host", "test")
           //                    .overrideConfigKey("quarkus.log.level", "debug")
           .withApplicationRoot(jar -> jar.addClass(AbcConsumer.class).addClass(BbcConsumer.class));
-
-  static {
-    RabbitUtils.buildConnectionFactory = MockConnectionFactory::new;
-  }
 
   @Inject AbcConsumer abcConsumer;
   @Inject HutchConfig config;
@@ -49,7 +45,7 @@ class HutchProcessorTest {
     }
   }
 
-  //  @Test
+  @Test
   void hutchInIOC() {
     // 测试提供一个 Hutch 在 IOC 里面
     var h = CDI.current().select(Hutch.class).get();
@@ -72,7 +68,11 @@ class HutchProcessorTest {
   @Test
   void testEnqueue() throws IOException, InterruptedException {
     var h = new Hutch(config);
-    h.start();
+    // 需要确保 queue 都存在, 需要调用 start 进行 declare
+    h.start().stop();
+    assertThat(h.isStarted()).isFalse();
+
+    h.connect();
     var q = h.getCh().queueDeclarePassive(abcConsumer.queue());
     var qc = q.getMessageCount();
 
@@ -82,9 +82,6 @@ class HutchProcessorTest {
     Thread.sleep(100);
     q = h.getCh().queueDeclarePassive(abcConsumer.queue());
     assertThat(q.getMessageCount()).isEqualTo(qc + 2);
-
-    h.stop();
-    assertThat(h.isStarted()).isFalse();
   }
 
   @Test
@@ -93,5 +90,17 @@ class HutchProcessorTest {
     assertThat(s).isNotNull();
     assertThat(s.isStarted()).isFalse();
     assertThat(s.getConfig()).isEqualTo(config);
+  }
+
+  @Test
+  void testMaxRetry() throws InterruptedException {
+    HutchConfig.getErrorHandlers().clear();
+    HutchConfig.getErrorHandlers().add(new NoDelayMaxRetry());
+    var h = CDI.current().select(Hutch.class).get();
+    h.start();
+    Hutch.publish(BbcConsumer.class, "bbc");
+    TimeUnit.SECONDS.sleep(6);
+    assertThat(BbcConsumer.times.get()).isEqualTo(2);
+    h.stop();
   }
 }

@@ -40,7 +40,7 @@ public class HutchUtils {
    * h: 3600s 7200s 10800s<br>
    */
   public static long fixDealyTime(long delay) {
-    if (delay > 0 && delay <= TimeUnit.SECONDS.toMillis(5)) {
+    if (delay <= TimeUnit.SECONDS.toMillis(5)) {
       return TimeUnit.SECONDS.toMillis(5);
     } else if (delay > TimeUnit.SECONDS.toMillis(5) && delay <= TimeUnit.SECONDS.toMillis(10)) {
       return TimeUnit.SECONDS.toMillis(10);

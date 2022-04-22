@@ -46,7 +46,7 @@ public interface HutchConsumer {
     return HutchUtils.prefixQueue(queueName(getClass()));
   }
 
-  /** 最大重试; default: 1 */
+  /** 最大重试, 不包括正常的第一次执行. ex: maxRetry=1, 那么会执行 2 次. default: 1 */
   default int maxRetry() {
     return 1;
   }

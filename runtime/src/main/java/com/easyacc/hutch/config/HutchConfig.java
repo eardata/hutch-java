@@ -7,6 +7,7 @@ import io.quarkus.runtime.annotations.ConfigPhase;
 import io.quarkus.runtime.annotations.ConfigRoot;
 import io.quarkus.runtime.annotations.StaticInitSafe;
 import io.smallrye.context.SmallRyeManagedExecutor;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -68,7 +69,8 @@ public class HutchConfig {
    */
   public static List<ErrorHandler> getErrorHandlers() {
     if (errorHandlers == null) {
-      errorHandlers = List.of(new MaxRetry());
+      errorHandlers = new ArrayList<>();
+      errorHandlers.add(new MaxRetry());
     }
     return errorHandlers;
   }

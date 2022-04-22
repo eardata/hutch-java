@@ -29,7 +29,8 @@ public class MaxRetry implements ErrorHandler {
     return c.get();
   }
 
-  public static long backoffDelay(long retryCount) {
+  /** 根据 retryCount 计算重试时间: 3s, 5s, 11s... */
+  long backoffDelay(long retryCount) {
     return (long) (Math.pow(3, retryCount) + 2) * 1000;
   }
 
