@@ -58,7 +58,14 @@ public class HutchConfig {
     }
   }
 
-  /** 获取默认的 ErrorHandlers, 如果没有初始化, 默认添加 MaxRetry */
+  /**
+   * 获取默认的 ErrorHandlers, 如果没有初始化, 默认添加 MaxRetry. 如果需要额外自定义 ErrorHandler, 那么
+   *
+   * <ul>
+   *   <li>实现 ErrorHandler 接口
+   *   <li>在 Quarkus 应用初始化的时候, 通过 HutchConfig.getErrorHandlers 获取实例, 将对应的 ErrorHandler 实例添加到有序队列中
+   * </ul>
+   */
   public static List<ErrorHandler> getErrorHandlers() {
     if (errorHandlers == null) {
       errorHandlers = List.of(new MaxRetry());

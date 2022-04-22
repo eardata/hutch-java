@@ -48,7 +48,12 @@ class SimpleConsumer extends DefaultConsumer {
       log.warn("hutch consumer already closed, ignore message", e);
     } catch (Exception e) {
       for (var eh : HutchConfig.getErrorHandlers()) {
-        eh.handle(this.hutchConsumer, msg, e);
+        try {
+          eh.handle(this.hutchConsumer, msg, e);
+        } catch (Exception e1) {
+          // ignore error handler exception
+          log.error("error handler " + eh.getClass().getName() + " error", e1);
+        }
       }
       // 最终的异常要在这里处理掉, 不需要将执行期异常往上抛, 保持 channel 正常
       log.warn("msg error", e);
