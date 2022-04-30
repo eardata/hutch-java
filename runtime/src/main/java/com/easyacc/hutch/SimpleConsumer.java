@@ -27,6 +27,19 @@ class SimpleConsumer extends DefaultConsumer {
     this.hutchConsumer = hc;
   }
 
+  /**
+   * 做开始 Consume 之前的动作
+   *
+   * @throws IOException basicQos, basicConsume, queueDeclarePassive 操作失败的异常
+   */
+  public void consume() throws IOException {
+    var autoAck = false;
+    var ch = this.getChannel();
+    ch.basicQos(this.hutchConsumer.prefetch());
+    ch.basicConsume(this.hutchConsumer.queue(), autoAck, this);
+    ch.queueDeclarePassive(this.hutchConsumer.queue());
+  }
+
   @Override
   public void handleDelivery(
       String consumerTag, Envelope envelope, BasicProperties properties, byte[] body) {

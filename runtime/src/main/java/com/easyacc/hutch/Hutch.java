@@ -72,6 +72,8 @@ public class Hutch implements IHutch {
   @Getter private Channel ch;
 
   private Connection conn;
+  /** 将 consumer 的 connection 与其他的区分开 */
+  private Connection connForConsumer;
 
   @Getter private boolean isStarted = false;
 
@@ -279,7 +281,10 @@ public class Hutch implements IHutch {
     }
     log.info("Hutch({}) connect to RabbitMQ: {}", Hutch.name(), config.getUri());
     // 不能完全使用一样, 是避免在 quakrus 的 dev 模式进行代码 reload
+    // https://www.cloudamqp.com/blog/the-relationship-between-connections-and-channels-in-rabbitmq.html
     this.conn = RabbitUtils.connect(this.config, String.format("hutch-%s", UUID.randomUUID()));
+    this.connForConsumer =
+        RabbitUtils.connect(this.config, String.format("hutch-consumers-%s", UUID.randomUUID()));
     this.ch = conn.createChannel();
   }
 
@@ -337,7 +342,7 @@ public class Hutch implements IHutch {
     // 所有的队列保持一个 connection, 实际使用, 队列会非常多, 数量很容易增加到 30 个以上
     var scl = new LinkedList<SimpleConsumer>();
     for (var i = 0; i < hc.concurrency(); i++) {
-      scl.add(consumeHutchConsumer(this.conn, hc));
+      scl.add(consumeHutchConsumer(hc));
     }
     this.hutchConsumers.put(hc.queue(), scl);
   }
@@ -359,16 +364,14 @@ public class Hutch implements IHutch {
   }
 
   /** 根据 Conn 在 RabbitMQ 上订阅一个队列进行消费 */
-  public SimpleConsumer consumeHutchConsumer(Connection conn, HutchConsumer hc) {
-    var autoAck = false;
+  public SimpleConsumer consumeHutchConsumer(HutchConsumer hc) {
     SimpleConsumer consumer = null;
+    Channel ch = null;
     try {
-      Channel ch = conn.createChannel();
+      ch = this.connForConsumer.createChannel();
       // 并发处理, 每一个 Consumer 为一个并发
       consumer = new SimpleConsumer(ch, hc);
-      ch.basicQos(hc.prefetch());
-      ch.basicConsume(hc.queue(), autoAck, consumer);
-      ch.queueDeclarePassive(hc.queue());
+      consumer.consume();
     } catch (Exception e) {
       RabbitUtils.closeChannel(ch);
     }
