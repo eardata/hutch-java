@@ -16,6 +16,7 @@ import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.rabbitmq.client.AMQP.BasicProperties;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
+import io.quarkus.runtime.LaunchMode;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
@@ -24,7 +25,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import javax.enterprise.inject.spi.CDI;
@@ -129,7 +129,12 @@ public class Hutch implements IHutch {
     if (current() == null) {
       throw new IllegalStateException("Hutch is not started");
     }
+    if (!current().isStarted()) {
+      log.warn("Hutch({}) is not started, publish message failed", current());
+      return;
+    }
     try {
+      log.debug("publish message to {} with routingKey {}", exchange, routingKey);
       current().getCh().basicPublish(exchange, routingKey, props, body);
     } catch (IOException e) {
       if (Hutch.HUTCH_SCHEDULE_EXCHANGE.equals(exchange)) {
@@ -257,8 +262,9 @@ public class Hutch implements IHutch {
 
   // ------------------------- instance methods -------------------------
 
+  /** 启动 Hutch 实例, 并且每次启动成功都将重置 currentHutch */
   @Override
-  public Hutch start() {
+  public synchronized Hutch start() {
     if (this.isStarted) {
       return this;
     }
@@ -268,6 +274,7 @@ public class Hutch implements IHutch {
       declearScheduleQueues();
       declearhutchConsumerQueues();
     } finally {
+      currentHutch = this;
       this.isStarted = true;
     }
     return this;
@@ -276,15 +283,13 @@ public class Hutch implements IHutch {
   /** 初始化 Hutch 自己使用的默认操作进行连接 */
   @SneakyThrows
   public void connect() {
-    if (currentHutch == null) {
-      currentHutch = this;
-    }
-    log.info("Hutch({}) connect to RabbitMQ: {}", Hutch.name(), config.getUri());
+    log.info("Hutch{}({}) connect to RabbitMQ: {}", this, Hutch.name(), config.getUri());
     // 不能完全使用一样, 是避免在 quakrus 的 dev 模式进行代码 reload
     // https://www.cloudamqp.com/blog/the-relationship-between-connections-and-channels-in-rabbitmq.html
-    this.conn = RabbitUtils.connect(this.config, String.format("hutch-%s", UUID.randomUUID()));
+    var mode = LaunchMode.current().name();
+    this.conn = RabbitUtils.connect(this.config, String.format("hutch-%s", mode));
     this.connForConsumer =
-        RabbitUtils.connect(this.config, String.format("hutch-consumers-%s", UUID.randomUUID()));
+        RabbitUtils.connect(this.config, String.format("hutch-consumers-%s", mode));
     this.ch = conn.createChannel();
   }
 
@@ -347,18 +352,30 @@ public class Hutch implements IHutch {
     this.hutchConsumers.put(hc.queue(), scl);
   }
 
+  /**
+   *
+   *
+   * <ul>
+   *   <li>停止所有的 SimpleConsumer
+   *   <li>关闭主 Channel
+   *   <li>关闭主 Connection
+   *   <li>关闭 Consumer Connection
+   * </ul>
+   */
   @Override
-  public void stop() {
+  public synchronized void stop() {
     log.info("Stop Hutch");
     try {
       if (this.isStarted) {
         for (var q : this.hutchConsumers.keySet()) {
-          this.hutchConsumers.get(q).forEach(SimpleConsumer::cancel);
+          this.hutchConsumers.get(q).forEach(SimpleConsumer::close);
         }
+        this.hutchConsumers.clear();
       }
     } finally {
       RabbitUtils.closeChannel(this.ch);
       RabbitUtils.closeConnection(this.conn);
+      RabbitUtils.closeConnection(this.connForConsumer);
       this.isStarted = false;
     }
   }

@@ -52,6 +52,10 @@ public class RabbitUtils {
   public static void closeChannel(Channel ch) {
     if (ch != null) {
       try {
+        log.debug(
+            "close channel: {}/{}",
+            ch.getConnection().getClientProvidedName(),
+            ch.getChannelNumber());
         ch.close();
       } catch (AlreadyClosedException ace) {
         // empty
@@ -66,6 +70,7 @@ public class RabbitUtils {
   public static void closeConnection(Connection conn) {
     if (conn != null) {
       try {
+        log.debug("close connection: {}", conn.getClientProvidedName());
         conn.close();
       } catch (AlreadyClosedException ace) {
         // empty

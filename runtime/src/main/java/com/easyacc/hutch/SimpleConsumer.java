@@ -83,4 +83,8 @@ class SimpleConsumer extends DefaultConsumer {
   public void cancel() {
     RabbitUtils.cancelConsumer(getChannel(), getConsumerTag());
   }
+
+  public void close() {
+    RabbitUtils.closeChannel(getChannel());
+  }
 }

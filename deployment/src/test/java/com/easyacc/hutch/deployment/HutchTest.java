@@ -50,6 +50,7 @@ class HutchTest {
     // 测试提供一个 Hutch 在 IOC 里面
     var h = CDI.current().select(Hutch.class).get();
     assertThat(h).isNotNull();
+    assertThat(h.isStarted()).isFalse();
   }
 
   @Test
@@ -67,21 +68,26 @@ class HutchTest {
 
   @Test
   void testEnqueue() throws IOException, InterruptedException {
+    //    var h = CDI.current().select(Hutch.class).get();
     var h = new Hutch(config);
     // 需要确保 queue 都存在, 需要调用 start 进行 declare
-    h.start().stop();
-    assertThat(h.isStarted()).isFalse();
+    h.start();
+    assertThat(h.isStarted()).isTrue();
 
-    h.connect();
+    assertThat(h).isEqualTo(Hutch.current());
+
     var q = h.getCh().queueDeclarePassive(abcConsumer.queue());
-    var qc = q.getMessageCount();
 
     abcConsumer.enqueue("abc");
     Hutch.publish(AbcConsumer.class, "ccc");
 
     Thread.sleep(100);
     q = h.getCh().queueDeclarePassive(abcConsumer.queue());
-    assertThat(q.getMessageCount()).isEqualTo(qc + 2);
+    // 消息被消费了
+    assertThat(q.getMessageCount()).isEqualTo(0);
+    assertThat(AbcConsumer.Timers.get()).isEqualTo(2);
+    h.stop();
+    assertThat(h.isStarted()).isFalse();
   }
 
   @Test
@@ -96,11 +102,14 @@ class HutchTest {
   void testMaxRetry() throws InterruptedException {
     HutchConfig.getErrorHandlers().clear();
     HutchConfig.getErrorHandlers().add(new NoDelayMaxRetry());
+    var c = Hutch.current();
     var h = CDI.current().select(Hutch.class).get();
+    assertThat(h.isStarted()).isFalse();
     h.start();
+    assertThat(h).isEqualTo(Hutch.current());
     Hutch.publish(BbcConsumer.class, "bbc");
     TimeUnit.SECONDS.sleep(6);
-    assertThat(BbcConsumer.times.get()).isEqualTo(2);
+    assertThat(BbcConsumer.Timers.get()).isEqualTo(2);
     h.stop();
   }
 }
