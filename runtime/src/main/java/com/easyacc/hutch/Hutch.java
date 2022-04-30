@@ -32,9 +32,11 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
 
 /**
  * 直接利用 RabbitMQ Java Client 的 Buffer 和 Thread Pool 来解决 MQ 的队列问题.<br>
+ * 0. 整个应用中, 只有一个 Hutch 实例, 其他的 HutchConsumer 都会被扫描到并被注入到进程中这一个 Hutch 实例中进行管理<br>
  * 1. 拥有自定义的 MessageListener, 负责自定义的消息响应<br>
  * 2. 映射 Queue 与 MessageListener 之间的对应关系<br>
  * 3. 通过多个 QueueConsumer 来控制并发<br>
@@ -82,6 +84,15 @@ public class Hutch implements IHutch {
     return APP_NAME;
   }
 
+  /** 返回当前的 Hutch 实例 */
+  public static Hutch current() {
+    return currentHutch;
+  }
+
+  public static Logger log() {
+    return log;
+  }
+
   /** 使用 fixedDelay (ms) 的 routing_key. ex: hutch.exchange.5s */
   public static String delayRoutingKey(long fixedDelay) {
     return String.format(
@@ -108,21 +119,21 @@ public class Hutch implements IHutch {
 
   /** 最原始的发送 bytes */
   public static void publish(String routingKey, BasicProperties props, byte[] body) {
-    publish(HUTCH_EXCHANGE, routingKey, props, body);
+    publish(Hutch.HUTCH_EXCHANGE, routingKey, props, body);
   }
 
   public static void publish(
       String exchange, String routingKey, BasicProperties props, byte[] body) {
-    if (currentHutch == null) {
+    if (current() == null) {
       throw new IllegalStateException("Hutch is not started");
     }
     try {
-      currentHutch.ch.basicPublish(exchange, routingKey, props, body);
+      current().getCh().basicPublish(exchange, routingKey, props, body);
     } catch (IOException e) {
-      if (HUTCH_SCHEDULE_EXCHANGE.equals(exchange)) {
-        log.error("publish with delay error", e);
+      if (Hutch.HUTCH_SCHEDULE_EXCHANGE.equals(exchange)) {
+        Hutch.log().error("publish with delay error", e);
       } else {
-        log.error("publish error", e);
+        Hutch.log().error("publish error", e);
       }
     }
   }
@@ -139,7 +150,7 @@ public class Hutch implements IHutch {
     try {
       body = om().writeValueAsBytes(msg);
     } catch (JsonProcessingException e) {
-      log.error("publishJson error", e);
+      Hutch.log().error("publishJson error", e);
     }
     publish(routingKey, props.build(), body);
   }
@@ -169,7 +180,7 @@ public class Hutch implements IHutch {
       body = om().writeValueAsBytes(msg);
       internalPublishWithDelay(delayInMs, props.build(), body);
     } catch (JsonProcessingException e) {
-      log.error("publishJson error", e);
+      Hutch.log().error("publishJson error", e);
     }
   }
 
@@ -187,11 +198,12 @@ public class Hutch implements IHutch {
         msg.getBody());
 
     var fixDelay = HutchUtils.fixDealyTime(delayInMs);
-    log.debug(
-        "publish with delay {} using routing_key {} and origin routing_key: {}",
-        fixDelay,
-        Hutch.delayRoutingKey(fixDelay),
-        routingKey);
+    Hutch.log()
+        .debug(
+            "publish with delay {} using routing_key {} and origin routing_key: {}",
+            fixDelay,
+            Hutch.delayRoutingKey(fixDelay),
+            routingKey);
   }
 
   /** 向延迟队列中发布消息 */
@@ -241,6 +253,8 @@ public class Hutch implements IHutch {
     return MPC;
   }
 
+  // ------------------------- instance methods -------------------------
+
   @Override
   public Hutch start() {
     if (this.isStarted) {
@@ -265,7 +279,7 @@ public class Hutch implements IHutch {
     }
     log.info("Hutch({}) connect to RabbitMQ: {}", Hutch.name(), config.getUri());
     // 不能完全使用一样, 是避免在 quakrus 的 dev 模式进行代码 reload
-    this.conn = this.newConnect(String.format("hutch-%s", UUID.randomUUID()));
+    this.conn = RabbitUtils.connect(this.config, String.format("hutch-%s", UUID.randomUUID()));
     this.ch = conn.createChannel();
   }
 
@@ -323,11 +337,7 @@ public class Hutch implements IHutch {
     // 所有的队列保持一个 connection, 实际使用, 队列会非常多, 数量很容易增加到 30 个以上
     var scl = new LinkedList<SimpleConsumer>();
     for (var i = 0; i < hc.concurrency(); i++) {
-      try {
-        scl.add(consumeHutchConsumer(this.conn.createChannel(), hc));
-      } catch (IOException e) {
-        throw new RuntimeException(e);
-      }
+      scl.add(consumeHutchConsumer(this.conn, hc));
     }
     this.hutchConsumers.put(hc.queue(), scl);
   }
@@ -348,15 +358,12 @@ public class Hutch implements IHutch {
     }
   }
 
-  private Connection newConnect(String name) {
-    return RabbitUtils.connect(this.config, name);
-  }
-
   /** 根据 Conn 在 RabbitMQ 上订阅一个队列进行消费 */
-  public SimpleConsumer consumeHutchConsumer(Channel ch, HutchConsumer hc) {
+  public SimpleConsumer consumeHutchConsumer(Connection conn, HutchConsumer hc) {
     var autoAck = false;
     SimpleConsumer consumer = null;
     try {
+      Channel ch = conn.createChannel();
       // 并发处理, 每一个 Consumer 为一个并发
       consumer = new SimpleConsumer(ch, hc);
       ch.basicQos(hc.prefetch());
