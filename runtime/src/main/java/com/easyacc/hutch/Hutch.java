@@ -24,6 +24,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import javax.enterprise.inject.spi.CDI;
@@ -263,7 +264,8 @@ public class Hutch implements IHutch {
       currentHutch = this;
     }
     log.info("Hutch({}) connect to RabbitMQ: {}", Hutch.name(), config.getUri());
-    this.conn = this.newConnect("hutch");
+    // 不能完全使用一样, 是避免在 quakrus 的 dev 模式进行代码 reload
+    this.conn = this.newConnect(String.format("hutch-%s", UUID.randomUUID()));
     this.ch = conn.createChannel();
   }
 
@@ -318,12 +320,14 @@ public class Hutch implements IHutch {
 
   protected void initHutchConsumer(HutchConsumer hc) {
     // Ref: https://github.com/rabbitmq/rabbitmq-perf-test/issues/93
-    // 可以考虑每为每一个 Queue 设置一个连接的 Connection, 因为一个 Connection 对应一个 TCP 连接, 而有的时候
-    // 一个 TCP 连接的吞吐量是有限的, 所以可以建立多个连接.
-    var conn = this.newConnect(hc.queue() + "_conn");
+    // 所有的队列保持一个 connection, 实际使用, 队列会非常多, 数量很容易增加到 30 个以上
     var scl = new LinkedList<SimpleConsumer>();
     for (var i = 0; i < hc.concurrency(); i++) {
-      scl.add(consumeHutchConsumer(conn, hc));
+      try {
+        scl.add(consumeHutchConsumer(this.conn.createChannel(), hc));
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
     }
     this.hutchConsumers.put(hc.queue(), scl);
   }
@@ -349,20 +353,17 @@ public class Hutch implements IHutch {
   }
 
   /** 根据 Conn 在 RabbitMQ 上订阅一个队列进行消费 */
-  public SimpleConsumer consumeHutchConsumer(Connection conn, HutchConsumer hc) {
+  public SimpleConsumer consumeHutchConsumer(Channel ch, HutchConsumer hc) {
     var autoAck = false;
-    Channel ch = null;
     SimpleConsumer consumer = null;
     try {
       // 并发处理, 每一个 Consumer 为一个并发
-      ch = conn.createChannel();
       consumer = new SimpleConsumer(ch, hc);
       ch.basicQos(hc.prefetch());
       ch.basicConsume(hc.queue(), autoAck, consumer);
       ch.queueDeclarePassive(hc.queue());
     } catch (Exception e) {
       RabbitUtils.closeChannel(ch);
-      RabbitUtils.closeConnection(conn);
     }
     return consumer;
   }
