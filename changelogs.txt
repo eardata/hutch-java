@@ -1,0 +1,10 @@
+v1.1.0
+* 确定 Hutch 在整个 quarkus 实例中只存在一个实例, 因为需要从当前 quarkus 实例中寻找所有 HutchConsumer 进行初始化
+* 修复 currentHutch 有初始化但没有进行 clear 的 bug 问题.
+* 取消为每一个 HutchConsumer 创建一个 Connection 的问题, 因为现在的使用场景中, 很少并发到 100 的, 所以调整为一个
+ Connection 处理消息发送, 一个 Connection 用于 Consumer. 特别高并发时候注意 rabbitmq 的 channel_max 参数(default: 2047).
+* 将 static 方法的调用与 instance 方法区分开
+
+v1.0.3
+* 提供 ErrorHandler 的机制来扩充消发生错误之后的处理方式
+* 支持简单的利用 fridujo 的 MockConnectionFactory 来进行 rabbitmq 的测试, 但推荐还是部署 rabbitmq 实例环境
