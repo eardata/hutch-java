@@ -112,4 +112,20 @@ class HutchTest {
     assertThat(BbcConsumer.Timers.get()).isEqualTo(2);
     h.stop();
   }
+
+  @Test
+  void testPublishJsonDelayRetry() throws InterruptedException {
+    HutchConfig.getErrorHandlers().clear();
+    HutchConfig.getErrorHandlers().add(new NoDelayMaxRetry());
+    var h = CDI.current().select(Hutch.class).get();
+    h.start();
+    Hutch.publishJsonWithDelay(1000, AbcConsumer.class, "ccc");
+    var a = AbcConsumer.Timers.get();
+    // 等待在 5s 以内
+    TimeUnit.SECONDS.sleep(2);
+    assertThat(AbcConsumer.Timers.get()).isEqualTo(a);
+    TimeUnit.SECONDS.sleep(6);
+    assertThat(AbcConsumer.Timers.get()).isEqualTo(a + 1);
+    h.stop();
+  }
 }
