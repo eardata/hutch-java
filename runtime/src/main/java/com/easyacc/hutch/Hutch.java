@@ -180,6 +180,7 @@ public class Hutch implements IHutch {
         new BasicProperties()
             .builder()
             .contentType("application/json")
+            .expiration(HutchUtils.fixDealyTime(delayInMs) + "")
             .headers(Collections.singletonMap("CC", List.of(routingKey)))
             .contentEncoding("UTF-8");
     byte[] body;
@@ -222,8 +223,7 @@ public class Hutch implements IHutch {
   /** 处理 Delay Message 需要处理的 header 信息等等, 保留原来消息中的 props header 等信息 */
   public static BasicProperties convertToDelayProps(
       String routingKey, MessageProperties props, long delay) {
-    var fixDelay = HutchUtils.fixDealyTime(delay);
-    props.setExpiration(fixDelay + "");
+    props.setExpiration(HutchUtils.fixDealyTime(delay) + "");
     props.setHeader("CC", List.of(routingKey));
     return getMessagePropertiesConverter().fromMessageProperties(props, "UTF-8");
   }
