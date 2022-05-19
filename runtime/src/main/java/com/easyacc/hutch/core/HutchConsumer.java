@@ -72,5 +72,5 @@ public interface HutchConsumer {
   }
 
   /** 具体处理消息 */
-  void onMessage(Message message);
+  void onMessage(Message message) throws Exception;
 }
