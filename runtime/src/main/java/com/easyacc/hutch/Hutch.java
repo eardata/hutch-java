@@ -180,6 +180,7 @@ public class Hutch implements IHutch {
         new BasicProperties()
             .builder()
             .contentType("application/json")
+            .expiration(Long.toString(HutchUtils.fixDealyTime(delayInMs)))
             .headers(Collections.singletonMap("CC", List.of(routingKey)))
             .contentEncoding("UTF-8");
     byte[] body;
