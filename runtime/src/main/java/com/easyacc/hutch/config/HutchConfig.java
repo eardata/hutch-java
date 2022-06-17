@@ -43,6 +43,10 @@ public class HutchConfig {
   @ConfigItem(defaultValue = "127.0.0.1")
   public String hostname;
 
+  /** 是否使用 rabbitmq 的 quorum queue */
+  @ConfigItem(defaultValue = "false")
+  public boolean quorum;
+
   /** 连接端口 */
   @ConfigItem(defaultValue = "5672")
   public int port;

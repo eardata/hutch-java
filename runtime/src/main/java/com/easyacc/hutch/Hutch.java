@@ -309,6 +309,9 @@ public class Hutch implements IHutch {
     // TODO: 可以考虑 x-message-ttl 为每个队列自己的超时时间, 这里设置成 30 天没有太大意义. (需要与 hutch-schedule 进行迁移)
     delayQueueArgs.put("x-message-ttl", TimeUnit.DAYS.toMillis(30));
     delayQueueArgs.put("x-dead-letter-exchange", HUTCH_EXCHANGE);
+    if (this.config.quorum) {
+      delayQueueArgs.put("x-queue-type", "quorum");
+    }
     for (var g : Gradient.values()) {
       try {
         this.ch.queueDeclare(g.queue(), true, false, false, delayQueueArgs);
@@ -335,7 +338,11 @@ public class Hutch implements IHutch {
 
   protected void declearHutchConsumQueue(HutchConsumer hc) {
     try {
-      this.ch.queueDeclare(hc.queue(), true, false, false, hc.queueArguments());
+      var args = new HashMap<>(hc.queueArguments());
+      if (this.config.quorum) {
+        args.put("x-queue-type", "quorum");
+      }
+      this.ch.queueDeclare(hc.queue(), true, false, false, args);
       this.ch.queueBind(hc.queue(), HUTCH_EXCHANGE, hc.routingKey());
     } catch (Exception e) {
       log.error("Declare queues error", e);
