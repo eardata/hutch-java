@@ -71,6 +71,6 @@ public interface HutchConsumer {
     Hutch.publishJsonWithDelay(delayInMs, this.routingKey(), t);
   }
 
-  /** 具体处理消息 */
-  void onMessage(Message message);
+  /** 具体处理消息, 可抛出异常自定义异常触发 ErrorHandler 处理 */
+  void onMessage(Message message) throws Exception;
 }
