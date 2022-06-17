@@ -42,6 +42,8 @@ quarkus:
     username: guest
     password: guest
     hostname: 127.0.0.1
+    # 是否使用 quorum queue
+    quorum: false
     port: 5672
 ```
 
