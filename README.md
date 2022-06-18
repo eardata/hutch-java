@@ -83,18 +83,31 @@ public class AbcTest implements HutchConsumer {
 @ApplicationScoped
 public class App {
 
-  @Inject
-  HutchConfig config;
-  Hutch hutch;
+   @Inject
+   HutchConfig config;
+   Hutch hutch;
 
-  void onStart(@Observes StartupEvent ev) throws IOException {
-    this.hutch = new Hutch(this.config).start();
-  }
+   void onStart(@Observes StartupEvent ev) throws IOException {
+      this.hutch = new Hutch(this.config).start();
+   }
 
-  void onStop(@Observes ShutdownEvent ev) {
-    this.hutch.stop();
-  }
+   void onStop(@Observes ShutdownEvent ev) {
+      this.hutch.stop();
+   }
 }
 ```
 
 5. 使用 quarkus cli 执行 `quarkus dev` 自动检查依赖并启动.
+
+## Quorum Queue
+
+在 hutch-java 中, 所有涉及到的 queue 只能同时使用一种类型的 queue type, 要么全部都是默认的 classic queue, 要么就全部切换到集群方式的
+quorum queue. 不在 HutchConsumer 级别做 quorum queue 申明的原因有:
+
+1. 对 rabbitmq 版本到 3.10 以后, quorum queue 与 classic queue
+   的区别已经[非常小](https://www.rabbitmq.com/quorum-queues.html)
+2. quorum queue 可以在单节点也可以在多节点上使用
+3. quorum queue 的高可用性非常用于代替 classic 是非常大的吸引力
+4. 如果是产品环境, 大多数情况都应该部署高可用环境, 同时使用 quorum queue
+
+所以, 在全局做了一个 quorum queue 开启关闭的开关.
