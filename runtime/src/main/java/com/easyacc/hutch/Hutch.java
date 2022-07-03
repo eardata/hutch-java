@@ -4,11 +4,14 @@ import com.easyacc.hutch.config.HutchConfig;
 import com.easyacc.hutch.core.HutchConsumer;
 import com.easyacc.hutch.core.Message;
 import com.easyacc.hutch.core.MessageProperties;
+import com.easyacc.hutch.scheduler.HyenaJob;
 import com.easyacc.hutch.support.DefaultMessagePropertiesConverter;
 import com.easyacc.hutch.support.MessagePropertiesConverter;
 import com.easyacc.hutch.util.HutchUtils;
 import com.easyacc.hutch.util.HutchUtils.Gradient;
 import com.easyacc.hutch.util.RabbitUtils;
+import com.easyacc.hutch.util.RedisUtils;
+import com.easyacc.hutch.util.SchedulerUtils;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -16,6 +19,8 @@ import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.rabbitmq.client.AMQP.BasicProperties;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
+import io.lettuce.core.RedisClient;
+import io.lettuce.core.api.StatefulRedisConnection;
 import io.quarkus.runtime.LaunchMode;
 import java.io.IOException;
 import java.util.Collections;
@@ -32,6 +37,11 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
+import org.quartz.JobBuilder;
+import org.quartz.Scheduler;
+import org.quartz.SimpleScheduleBuilder;
+import org.quartz.TriggerBuilder;
+import org.quartz.impl.StdSchedulerFactory;
 import org.slf4j.Logger;
 
 /**
@@ -74,6 +84,9 @@ public class Hutch implements IHutch {
   private Connection conn;
   /** 将 consumer 的 connection 与其他的区分开 */
   private Connection connForConsumer;
+
+  private Scheduler scheduler;
+  @Getter private StatefulRedisConnection<String, String> redisConnection;
 
   @Getter private boolean isStarted = false;
 
@@ -273,6 +286,9 @@ public class Hutch implements IHutch {
       declareExchanges();
       declareScheduleQueues();
       declareHutchConsumerQueues();
+
+      initScheduler();
+      initRedisClient();
     } finally {
       currentHutch = this;
       this.isStarted = true;
@@ -332,6 +348,7 @@ public class Hutch implements IHutch {
     for (var hc : Hutch.consumers()) {
       declareHutchConsumerQueue(hc);
       initHutchConsumer(hc);
+      initHutchConsumerTrigger(hc);
       log.debug("Connect to {}", hc.queue());
     }
   }
@@ -359,6 +376,42 @@ public class Hutch implements IHutch {
     this.hutchConsumers.put(hc.queue(), scl);
   }
 
+  /** 初始化 Job Trigger */
+  protected void initHutchConsumerTrigger(HutchConsumer hc) {
+    var threshold = hc.threshold();
+    if (threshold != null) {
+      TriggerBuilder.newTrigger()
+          .withIdentity(hc.queue(), Hutch.name())
+          .startNow()
+          .withSchedule(
+              SimpleScheduleBuilder.simpleSchedule()
+                  .withIntervalInSeconds(threshold.interval())
+                  .repeatForever())
+          .forJob(
+              JobBuilder.newJob(HyenaJob.class)
+                  .withIdentity(hc.queue(), Hutch.name())
+                  .usingJobData("rate", threshold.rate())
+                  .usingJobData("queue", threshold.queue(hc))
+                  .usingJobData("routingKey", hc.routingKey())
+                  .build())
+          .build();
+    }
+  }
+
+  /** 初始化 Quartz Scheduler */
+  @SneakyThrows
+  protected void initScheduler() {
+    this.scheduler = new StdSchedulerFactory().getScheduler();
+    this.scheduler.start();
+  }
+
+  /** 初始化 Redis Connection */
+  protected void initRedisClient() {
+    if (this.config.redisUrl != null) {
+      this.redisConnection = RedisClient.create(this.config.redisUrl).connect();
+    }
+  }
+
   /**
    *
    *
@@ -380,6 +433,9 @@ public class Hutch implements IHutch {
         this.hutchConsumers.clear();
       }
     } finally {
+      SchedulerUtils.clear(this.scheduler);
+      RedisUtils.close(this.redisConnection);
+
       RabbitUtils.closeChannel(this.ch);
       RabbitUtils.closeConnection(this.conn);
       RabbitUtils.closeConnection(this.connForConsumer);
