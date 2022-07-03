@@ -41,6 +41,11 @@ public interface HutchConsumer {
     return 1;
   }
 
+  /** 主动限流的参数 */
+  default Threshold threshold() {
+    return null;
+  }
+
   /** 绑定的队列名称(down case). default: <Hutch.name>_clazz.simpleName */
   default String queue() {
     return HutchUtils.prefixQueue(queueName(getClass()));
