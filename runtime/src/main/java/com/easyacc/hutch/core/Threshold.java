@@ -16,4 +16,7 @@ public interface Threshold {
   default String queue(HutchConsumer hc, Object msg) {
     return hc.queue();
   }
+
+  /** 将 redis 中的消息 publish 出去 */
+  void publish(String msg);
 }

@@ -1,6 +1,7 @@
 package com.easyacc.hutch.scheduler;
 
 import com.easyacc.hutch.Hutch;
+import com.easyacc.hutch.core.HutchConsumer;
 import io.lettuce.core.api.sync.RedisCommands;
 import java.time.Duration;
 import java.time.Instant;
@@ -20,26 +21,34 @@ public class HyenaJob implements Job {
 
   @Override
   public void execute(JobExecutionContext context) {
+    // 找出 HutchConsumer 实例
+    var clazz = context.getJobDetail().getJobDataMap().getString("consumer");
+    var consumer = HutchConsumer.get(clazz);
+    if (consumer == null) {
+      throw new RuntimeException("未找到 HutchConsumer!" + clazz);
+    }
+
+    // 检查 threshold 参数
+    var threshold = consumer.threshold();
+    if (threshold == null) {
+      throw new IllegalStateException("未找到 threshold 参数!" + clazz);
+    }
+
+    // 1. 获取 redis 实例
     var redis = Hutch.current().getRedisConnection().sync();
 
-    var jobDataMap = context.getJobDetail().getJobDataMap();
-    var rate = jobDataMap.getInt("rate");
-    var queue = jobDataMap.getString("queue");
-    var routingKey = jobDataMap.getString("routingKey");
-
-    // 1. 尝试刷新一次 redis keys
-    this.reloadRedisKeys(queue, redis);
-
-    // 2. 从 redis 中获取 task
+    // 2. 尝试刷新一次 redis keys
+    this.reloadRedisKeys(consumer.queue(), redis);
+    // 3. 从 redis 中获取 task
     for (var key : this.redisKeys) {
-      var tasks = redis.zrange(key, 0, rate - 1);
+      var tasks = redis.zrange(key, 0, threshold.rate() - 1);
       if (tasks.isEmpty()) {
         log.debug("从 redis 中未找到任务数据! key: {}", key);
         continue;
       }
 
       // 通过 Hutch 来 publish 出去
-      tasks.forEach(task -> Hutch.publish(routingKey, task));
+      tasks.forEach(threshold::publish);
       // 从 redis 队列中移除 tasks
       redis.zrem(key, tasks.toArray(String[]::new));
     }
