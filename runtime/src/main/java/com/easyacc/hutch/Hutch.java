@@ -31,9 +31,12 @@ import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import javax.enterprise.inject.spi.CDI;
 import lombok.Getter;
 import lombok.Setter;
@@ -231,15 +234,17 @@ public class Hutch implements IHutch {
       throw new IllegalStateException("未找到 threshold 参数!" + hc.getClass());
     }
 
+    // 使用 msg 计算出 key 作为 redis key 的 suffix
+    var key =
+        Stream.of(hc.queue(), threshold.key(msg))
+            .filter(Objects::nonNull)
+            .filter(Predicate.not(String::isBlank))
+            .collect(Collectors.joining("."));
     Hutch.current()
         .getRedisConnection()
         .sync()
-        .zadd(
-            // 使用 msg 计算出 key 作为 redis key 的 suffix
-            hc.queue() + threshold.key(msg),
-            // 使用当前时间作为 score
-            Timestamp.valueOf(LocalDateTime.now()).getTime(),
-            msg);
+        // 使用当前时间作为 score
+        .zadd(key, Timestamp.valueOf(LocalDateTime.now()).getTime(), msg);
   }
 
   /**
