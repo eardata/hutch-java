@@ -46,13 +46,13 @@ public class HyenaJob implements Job {
   }
 
   /** 刷新一次 redis keys */
-  private void reloadRedisKeys(String queue, RedisCommands<String, String> redis) {
+  private void reloadRedisKeys(String prefix, RedisCommands<String, String> redis) {
     var intervals = Duration.between(this.updatedAt, Instant.now()).toSeconds();
     if (intervals < 10) {
       log.info("Reload skipped. The interval must > 10s, right now is: {}s", intervals);
     }
 
-    this.redisKeys = redis.keys(String.format("%s.*", queue));
+    this.redisKeys = redis.keys(String.format("%s.*", prefix));
     this.updatedAt = Instant.now();
   }
 }
