@@ -5,6 +5,7 @@ import com.easyacc.hutch.core.HutchConsumer;
 import com.easyacc.hutch.core.Message;
 import com.easyacc.hutch.core.Threshold;
 import java.lang.invoke.MethodHandles;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /** Created by IntelliJ IDEA. User: wyatt Date: 2022/3/15 Time: 16:46 */
@@ -30,8 +31,10 @@ public class AbcConsumer implements HutchConsumer {
       }
 
       @Override
-      public void publish(String msg) {
-        Hutch.publish(AbcConsumer.class, msg);
+      public void publish(List<String> msgs) {
+        for (var msg : msgs) {
+          Hutch.publish(AbcConsumer.class, msg);
+        }
       }
     };
   }

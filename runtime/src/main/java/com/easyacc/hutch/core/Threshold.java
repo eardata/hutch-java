@@ -1,5 +1,7 @@
 package com.easyacc.hutch.core;
 
+import java.util.List;
+
 /** 自定义的主动限流参数 */
 public interface Threshold {
   /** 每次执行加载出来的数量 */
@@ -18,5 +20,5 @@ public interface Threshold {
   }
 
   /** 将 redis 中的消息 publish 出去 */
-  void publish(String msg);
+  void publish(List<String> msgs);
 }

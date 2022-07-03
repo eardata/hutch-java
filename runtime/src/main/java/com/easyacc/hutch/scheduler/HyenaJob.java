@@ -48,7 +48,7 @@ public class HyenaJob implements Job {
       }
 
       // 通过 Hutch 来 publish 出去
-      tasks.forEach(threshold::publish);
+      threshold.publish(tasks);
       // 从 redis 队列中移除 tasks
       redis.zrem(key, tasks.toArray(String[]::new));
     }
