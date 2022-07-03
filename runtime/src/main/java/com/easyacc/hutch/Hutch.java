@@ -322,13 +322,15 @@ public class Hutch implements IHutch {
       return this;
     }
     try {
+      // 先初始化 scheduler 和 redis
+      initScheduler();
+      initRedisClient();
+
       connect();
       declareExchanges();
       declareScheduleQueues();
       declareHutchConsumerQueues();
 
-      initScheduler();
-      initRedisClient();
     } finally {
       currentHutch = this;
       this.isStarted = true;
@@ -417,23 +419,25 @@ public class Hutch implements IHutch {
   }
 
   /** 初始化 Job Trigger */
+  @SneakyThrows
   protected void initHutchConsumerTrigger(HutchConsumer hc) {
     var threshold = hc.threshold();
     if (threshold != null) {
-      // 将 Job 注册成为 Trigger
-      TriggerBuilder.newTrigger()
-          .withIdentity(hc.queue(), Hutch.name())
-          .startNow()
-          .withSchedule(
-              SimpleScheduleBuilder.simpleSchedule()
-                  .withIntervalInSeconds(threshold.interval())
-                  .repeatForever())
-          .forJob(
-              JobBuilder.newJob(HyenaJob.class)
-                  .withIdentity(hc.queue(), Hutch.name())
-                  .usingJobData("consumer", hc.getClass().toString())
-                  .build())
-          .build();
+      var job =
+          JobBuilder.newJob(HyenaJob.class)
+              .withIdentity(hc.queue(), Hutch.name())
+              .usingJobData("consumer", hc.getClass().toString())
+              .build();
+      var trigger =
+          TriggerBuilder.newTrigger()
+              .withIdentity(hc.queue(), Hutch.name())
+              .startNow()
+              .withSchedule(
+                  SimpleScheduleBuilder.simpleSchedule()
+                      .withIntervalInSeconds(threshold.interval())
+                      .repeatForever())
+              .build();
+      this.scheduler.scheduleJob(job, trigger);
     }
   }
 
