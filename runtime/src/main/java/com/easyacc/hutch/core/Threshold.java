@@ -12,9 +12,9 @@ public interface Threshold {
     return 1;
   }
 
-  /** 通过 msg 来计算 redis 队列, 用于 publish 时计算目标 key, 默认使用 Consumer 队列名称 */
-  default String queue(HutchConsumer hc, Object msg) {
-    return hc.queue();
+  /** 通过 msg 来计算 redis 队列的 suffix */
+  default String key(Object msg) {
+    return "";
   }
 
   /** 将 redis 中的消息 publish 出去 */

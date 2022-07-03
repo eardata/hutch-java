@@ -25,6 +25,11 @@ public class AbcConsumer implements HutchConsumer {
       }
 
       @Override
+      public String key(Object msg) {
+        return msg.toString();
+      }
+
+      @Override
       public void publish(String msg) {
         Hutch.publish(AbcConsumer.class, msg);
       }

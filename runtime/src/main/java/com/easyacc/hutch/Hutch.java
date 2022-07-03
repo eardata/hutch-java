@@ -235,8 +235,8 @@ public class Hutch implements IHutch {
         .getRedisConnection()
         .sync()
         .zadd(
-            // 使用 msg 计算出 redis key
-            threshold.queue(hc, msg),
+            // 使用 msg 计算出 key 作为 redis key 的 suffix
+            hc.queue() + threshold.key(msg),
             // 使用当前时间作为 score
             Timestamp.valueOf(LocalDateTime.now()).getTime(),
             msg);
