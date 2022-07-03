@@ -36,7 +36,6 @@ public class HyenaJob implements Job {
 
     // 1. 获取 redis 实例
     var redis = Hutch.current().getRedisConnection().sync();
-
     // 2. 尝试刷新一次 redis keys
     this.reloadRedisKeys(consumer.queue(), redis);
     // 3. 从 redis 中获取 task
@@ -61,7 +60,7 @@ public class HyenaJob implements Job {
       log.info("Reload skipped. The interval must > 10s, right now is: {}s", intervals);
     }
 
-    this.redisKeys = redis.keys(String.format("%s.*", prefix));
+    this.redisKeys = redis.keys(String.format("%s*", prefix));
     this.updatedAt = Instant.now();
   }
 }
