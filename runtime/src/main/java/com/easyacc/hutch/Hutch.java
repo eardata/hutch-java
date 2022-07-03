@@ -270,9 +270,9 @@ public class Hutch implements IHutch {
     }
     try {
       connect();
-      declearExchanges();
-      declearScheduleQueues();
-      declearhutchConsumerQueues();
+      declareExchanges();
+      declareScheduleQueues();
+      declareHutchConsumerQueues();
     } finally {
       currentHutch = this;
       this.isStarted = true;
@@ -293,7 +293,7 @@ public class Hutch implements IHutch {
     this.ch = conn.createChannel();
   }
 
-  protected void declearExchanges() {
+  protected void declareExchanges() {
     try {
       this.ch.exchangeDeclare(HUTCH_EXCHANGE, "topic", true);
       this.ch.exchangeDeclare(HUTCH_SCHEDULE_EXCHANGE, "topic", true);
@@ -303,7 +303,7 @@ public class Hutch implements IHutch {
     }
   }
 
-  protected void declearScheduleQueues() {
+  protected void declareScheduleQueues() {
     // 初始化 delay queue 相关的信息
     var delayQueueArgs = new HashMap<String, Object>();
     // TODO: 可以考虑 x-message-ttl 为每个队列自己的超时时间, 这里设置成 30 天没有太大意义. (需要与 hutch-schedule 进行迁移)
@@ -322,7 +322,7 @@ public class Hutch implements IHutch {
     }
   }
 
-  protected void declearhutchConsumerQueues() {
+  protected void declareHutchConsumerQueues() {
     var queues = Hutch.queues();
     log.info(
         "Start Hutch ({}) with queues({}): {}",
@@ -330,13 +330,13 @@ public class Hutch implements IHutch {
         queues.size(),
         queues);
     for (var hc : Hutch.consumers()) {
-      declearHutchConsumQueue(hc);
+      declareHutchConsumerQueue(hc);
       initHutchConsumer(hc);
       log.debug("Connect to {}", hc.queue());
     }
   }
 
-  protected void declearHutchConsumQueue(HutchConsumer hc) {
+  protected void declareHutchConsumerQueue(HutchConsumer hc) {
     try {
       var args = new HashMap<>(hc.queueArguments());
       if (this.config.quorum) {
