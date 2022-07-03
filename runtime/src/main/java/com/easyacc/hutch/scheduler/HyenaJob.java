@@ -7,6 +7,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import org.quartz.Job;
 import org.quartz.JobExecutionContext;
@@ -56,7 +57,7 @@ public class HyenaJob implements Job {
   /** 刷新一次 redis keys */
   private void reloadRedisKeys(String prefix, RedisCommands<String, String> redis) {
     var intervals = Duration.between(this.updatedAt, Instant.now()).toSeconds();
-    if (intervals < 10) {
+    if (intervals < TimeUnit.MINUTES.toSeconds(1)) {
       log.info("Reload skipped. The interval must > 10s, right now is: {}s", intervals);
     }
 
