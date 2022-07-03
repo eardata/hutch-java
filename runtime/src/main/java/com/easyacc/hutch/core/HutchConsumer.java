@@ -19,6 +19,20 @@ import java.util.Map;
  *     method</a>
  */
 public interface HutchConsumer {
+  static HutchConsumer get(String clazz) {
+    return Hutch.consumers().stream()
+        .filter(c -> c.getClass().toString().equals(clazz))
+        .findFirst()
+        .orElse(null);
+  }
+
+  /** 静态方法提供通过 class 寻找 HutchConsumer 实例 */
+  static HutchConsumer get(Class<? extends HutchConsumer> clazz) {
+    return Hutch.consumers().stream()
+        .filter(c -> c.getClass().equals(clazz))
+        .findFirst()
+        .orElse(null);
+  }
 
   /** 静态方法提供 routing key 计算支持 */
   static String rk(Class<? extends HutchConsumer> clazz) {
