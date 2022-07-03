@@ -23,6 +23,8 @@ import io.lettuce.core.RedisClient;
 import io.lettuce.core.api.StatefulRedisConnection;
 import io.quarkus.runtime.LaunchMode;
 import java.io.IOException;
+import java.sql.Timestamp;
+import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -73,6 +75,7 @@ public class Hutch implements IHutch {
   private static volatile Hutch currentHutch;
 
   @Setter private static ObjectMapper objectMapper;
+  private static Set<HutchConsumer> consumers;
 
   private final Map<String, List<SimpleConsumer>> hutchConsumers;
 
@@ -162,6 +165,7 @@ public class Hutch implements IHutch {
   public static void publishJson(Class<? extends HutchConsumer> consumer, Object msg) {
     publishJson(HutchConsumer.rk(consumer), msg);
   }
+
   /** 直接当做 JSON 发送 */
   public static void publishJson(String routingKey, Object msg) {
     var props =
@@ -203,6 +207,39 @@ public class Hutch implements IHutch {
     } catch (JsonProcessingException e) {
       Hutch.log().error("publishJson error", e);
     }
+  }
+
+  /** 直接使用 JSON 进行 schedule publish */
+  public static void publishJsonWithSchedule(Class<? extends HutchConsumer> consumer, Object msg) {
+    try {
+      publishWithSchedule(consumer, om().writeValueAsString(msg));
+    } catch (JsonProcessingException e) {
+      Hutch.log().error("publishJson error", e);
+    }
+  }
+
+  /** 进行 schedule publish */
+  public static void publishWithSchedule(Class<? extends HutchConsumer> consumer, String msg) {
+    // 寻找到对应的 Consumer 实例
+    var hc = HutchConsumer.get(consumer);
+    if (hc == null) {
+      throw new IllegalStateException("未找到 HutchConsumer 实例!" + consumer);
+    }
+
+    var threshold = hc.threshold();
+    if (threshold == null) {
+      throw new IllegalStateException("未找到 threshold 参数!" + hc.getClass());
+    }
+
+    Hutch.current()
+        .getRedisConnection()
+        .sync()
+        .zadd(
+            // 使用 msg 计算出 redis key
+            threshold.queue(hc, msg),
+            // 使用当前时间作为 score
+            Timestamp.valueOf(LocalDateTime.now()).getTime(),
+            msg);
   }
 
   /**
@@ -252,17 +289,20 @@ public class Hutch implements IHutch {
     return Hutch.objectMapper;
   }
 
+  /** Hutch 所有的 HutchConsumer 实例 */
   public static Set<HutchConsumer> consumers() {
-    var beans = CDI.current().getBeanManager().getBeans(HutchConsumer.class);
-    var queues = new HashSet<HutchConsumer>();
-    for (var bean : beans) {
-      var hco = HutchUtils.findHutchConsumerBean(bean.getBeanClass());
-      if (hco.isEmpty()) {
-        continue;
+    if (Hutch.consumers == null) {
+      Hutch.consumers = new HashSet<>();
+      var beans = CDI.current().getBeanManager().getBeans(HutchConsumer.class);
+      for (var bean : beans) {
+        var hco = HutchUtils.findHutchConsumerBean(bean.getBeanClass());
+        if (hco.isEmpty()) {
+          continue;
+        }
+        Hutch.consumers.add(hco.get());
       }
-      queues.add(hco.get());
     }
-    return queues;
+    return Hutch.consumers;
   }
 
   public static Set<String> queues() {
@@ -380,6 +420,7 @@ public class Hutch implements IHutch {
   protected void initHutchConsumerTrigger(HutchConsumer hc) {
     var threshold = hc.threshold();
     if (threshold != null) {
+      // 将 Job 注册成为 Trigger
       TriggerBuilder.newTrigger()
           .withIdentity(hc.queue(), Hutch.name())
           .startNow()
@@ -390,9 +431,7 @@ public class Hutch implements IHutch {
           .forJob(
               JobBuilder.newJob(HyenaJob.class)
                   .withIdentity(hc.queue(), Hutch.name())
-                  .usingJobData("rate", threshold.rate())
-                  .usingJobData("queue", threshold.queue(hc))
-                  .usingJobData("routingKey", hc.routingKey())
+                  .usingJobData("consumer", hc.getClass().toString())
                   .build())
           .build();
     }

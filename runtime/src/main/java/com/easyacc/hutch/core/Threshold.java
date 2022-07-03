@@ -12,7 +12,7 @@ public interface Threshold {
     return 1;
   }
 
-  /** 通过 Message Payload 来计算 redis 队列, 用于 publish 时计算目标 key, 默认使用 Consumer 队列名称 */
+  /** 通过 msg 来计算 redis 队列, 用于 publish 时计算目标 key, 默认使用 Consumer 队列名称 */
   default String queue(HutchConsumer hc, Object msg) {
     return hc.queue();
   }
