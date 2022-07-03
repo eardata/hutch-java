@@ -332,14 +332,15 @@ public class Hutch implements IHutch {
       declareScheduleQueues();
       declareHutchConsumerQueues();
 
+      initScheduler();
+      initRedisClient();
     } finally {
       currentHutch = this;
+      // 确保 currentHutch 不为 null
+      initHutchConsumerTriggers();
       this.isStarted = true;
     }
 
-    initScheduler();
-    initRedisClient();
-    initHutchConsumerTriggers();
     return this;
   }
 
