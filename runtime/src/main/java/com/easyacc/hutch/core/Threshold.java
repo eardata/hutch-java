@@ -15,7 +15,7 @@ public interface Threshold {
   }
 
   /** 通过 msg 来计算 redis 队列的 suffix */
-  default String key(Object msg) {
+  default String key(String msg) {
     return null;
   }
 
