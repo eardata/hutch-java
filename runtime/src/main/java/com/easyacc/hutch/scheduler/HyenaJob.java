@@ -25,7 +25,7 @@ public class HyenaJob implements Job {
     var clazz = context.getJobDetail().getJobDataMap().getString("consumer");
     var consumer = HutchConsumer.get(clazz);
     if (consumer == null) {
-      throw new RuntimeException("未找到 HutchConsumer!" + clazz);
+      throw new IllegalStateException("未找到 HutchConsumer!" + clazz);
     }
 
     // 检查 threshold 参数
