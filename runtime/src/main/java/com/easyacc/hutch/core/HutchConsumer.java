@@ -31,7 +31,7 @@ public interface HutchConsumer {
         .replace("__subclass", "");
   }
 
-  /** 每一个 Channel 能够拥有的 prefech, 避免单个 channel 积累太多任务. default: 2 */
+  /** 每一个 Channel 能够拥有的 prefetch, 避免单个 channel 积累太多任务. default: 2 */
   default int prefetch() {
     return 2;
   }
