@@ -22,6 +22,11 @@ public class HyenaJob implements Job {
 
   @Override
   public void execute(JobExecutionContext context) {
+    // 检查 Hutch 是否启动
+    if (Hutch.current() == null) {
+      throw new IllegalStateException("Hutch 还未启动!");
+    }
+
     // 找出 HutchConsumer 实例
     var clazz = context.getJobDetail().getJobDataMap().getString("consumer");
     var consumer = HutchConsumer.get(clazz);

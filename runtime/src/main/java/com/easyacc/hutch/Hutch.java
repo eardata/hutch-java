@@ -327,10 +327,6 @@ public class Hutch implements IHutch {
       return this;
     }
     try {
-      // 先初始化 scheduler 和 redis
-      initScheduler();
-      initRedisClient();
-
       connect();
       declareExchanges();
       declareScheduleQueues();
@@ -340,6 +336,10 @@ public class Hutch implements IHutch {
       currentHutch = this;
       this.isStarted = true;
     }
+
+    initScheduler();
+    initRedisClient();
+    initHutchConsumerTriggers();
     return this;
   }
 
@@ -395,7 +395,6 @@ public class Hutch implements IHutch {
     for (var hc : Hutch.consumers()) {
       declareHutchConsumerQueue(hc);
       initHutchConsumer(hc);
-      initHutchConsumerTrigger(hc);
       log.debug("Connect to {}", hc.queue());
     }
   }
@@ -421,6 +420,13 @@ public class Hutch implements IHutch {
       scl.add(consumeHutchConsumer(hc));
     }
     this.hutchConsumers.put(hc.queue(), scl);
+  }
+
+  /** 为所有的 Consumer 初始化 Job Trigger */
+  protected void initHutchConsumerTriggers() {
+    for (var hc : Hutch.consumers()) {
+      initHutchConsumerTrigger(hc);
+    }
   }
 
   /** 初始化 Job Trigger */
