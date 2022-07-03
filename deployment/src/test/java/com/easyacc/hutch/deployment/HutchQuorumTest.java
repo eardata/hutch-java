@@ -14,13 +14,15 @@ import javax.inject.Inject;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
-class HutchTest {
+/** 测试 quorum queue, 测试的内容与 classic queue 基本一致, 但因为 quarkus 的 test 中的 app 初始化方式, 所以暂时先直接复制测试代码 */
+class HutchQuorumTest {
   @RegisterExtension
   static final QuarkusUnitTest app =
       new QuarkusUnitTest()
           .overrideConfigKey("quarkus.application.name", "hutch-app")
           .overrideConfigKey("quarkus.hutch.name", "lake_web")
-          .overrideConfigKey("quarkus.hutch.virtual-host", "test")
+          .overrideConfigKey("quarkus.hutch.quorum", "true")
+          .overrideConfigKey("quarkus.hutch.virtual-host", "test_quorum")
           //                    .overrideConfigKey("quarkus.log.level", "debug")
           .withApplicationRoot(jar -> jar.addClass(AbcConsumer.class).addClass(BbcConsumer.class));
 

@@ -180,7 +180,7 @@ public class Hutch implements IHutch {
         new BasicProperties()
             .builder()
             .contentType("application/json")
-            .expiration(Long.toString(HutchUtils.fixDealyTime(delayInMs)))
+            .expiration(HutchUtils.fixDealyTime(delayInMs) + "")
             .headers(Collections.singletonMap("CC", List.of(routingKey)))
             .contentEncoding("UTF-8");
     byte[] body;
@@ -223,8 +223,7 @@ public class Hutch implements IHutch {
   /** 处理 Delay Message 需要处理的 header 信息等等, 保留原来消息中的 props header 等信息 */
   public static BasicProperties convertToDelayProps(
       String routingKey, MessageProperties props, long delay) {
-    var fixDelay = HutchUtils.fixDealyTime(delay);
-    props.setExpiration(fixDelay + "");
+    props.setExpiration(HutchUtils.fixDealyTime(delay) + "");
     props.setHeader("CC", List.of(routingKey));
     return getMessagePropertiesConverter().fromMessageProperties(props, "UTF-8");
   }
@@ -310,6 +309,9 @@ public class Hutch implements IHutch {
     // TODO: 可以考虑 x-message-ttl 为每个队列自己的超时时间, 这里设置成 30 天没有太大意义. (需要与 hutch-schedule 进行迁移)
     delayQueueArgs.put("x-message-ttl", TimeUnit.DAYS.toMillis(30));
     delayQueueArgs.put("x-dead-letter-exchange", HUTCH_EXCHANGE);
+    if (this.config.quorum) {
+      delayQueueArgs.put("x-queue-type", "quorum");
+    }
     for (var g : Gradient.values()) {
       try {
         this.ch.queueDeclare(g.queue(), true, false, false, delayQueueArgs);
@@ -336,7 +338,11 @@ public class Hutch implements IHutch {
 
   protected void declearHutchConsumQueue(HutchConsumer hc) {
     try {
-      this.ch.queueDeclare(hc.queue(), true, false, false, hc.queueArguments());
+      var args = new HashMap<>(hc.queueArguments());
+      if (this.config.quorum) {
+        args.put("x-queue-type", "quorum");
+      }
+      this.ch.queueDeclare(hc.queue(), true, false, false, args);
       this.ch.queueBind(hc.queue(), HUTCH_EXCHANGE, hc.routingKey());
     } catch (Exception e) {
       log.error("Declare queues error", e);
