@@ -43,6 +43,7 @@ import lombok.Setter;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.quartz.JobBuilder;
+import org.quartz.JobDataMap;
 import org.quartz.Scheduler;
 import org.quartz.SimpleScheduleBuilder;
 import org.quartz.TriggerBuilder;
@@ -331,12 +332,12 @@ public class Hutch implements IHutch {
       declareExchanges();
       declareScheduleQueues();
       declareHutchConsumerQueues();
-
-      initScheduler();
-      initRedisClient();
     } finally {
       currentHutch = this;
+
       // 确保 currentHutch 不为 null
+      initScheduler();
+      initRedisClient();
       initHutchConsumerTriggers();
       this.isStarted = true;
     }
@@ -438,7 +439,7 @@ public class Hutch implements IHutch {
       var job =
           JobBuilder.newJob(HyenaJob.class)
               .withIdentity(hc.queue(), Hutch.name())
-              .usingJobData("consumer", hc.getClass().toString())
+              .usingJobData(new JobDataMap(Map.of("consumerClass", hc.getClass())))
               .build();
       var trigger =
           TriggerBuilder.newTrigger()
