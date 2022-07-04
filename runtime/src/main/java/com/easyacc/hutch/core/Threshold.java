@@ -1,9 +1,17 @@
 package com.easyacc.hutch.core;
 
+import com.easyacc.hutch.Hutch;
 import java.util.List;
+import lombok.SneakyThrows;
 
 /** 自定义的主动限流参数 */
 public interface Threshold {
+  /** 将 redis 中的 msg 通过 jackson 读取成为 clazz 的实例 */
+  @SneakyThrows
+  default <T> T toType(Class<T> clazz, String msg) {
+    return Hutch.om().readerFor(clazz).readValue(msg);
+  }
+
   /** 每次执行加载出来的数量 */
   default int rate() {
     return 1;
