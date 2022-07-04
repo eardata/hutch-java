@@ -22,7 +22,7 @@ public interface HutchConsumer {
   /** 静态方法提供通过 class 寻找 HutchConsumer 实例 */
   static HutchConsumer get(Class<? extends HutchConsumer> clazz) {
     return Hutch.consumers().stream()
-        .filter(c -> c.getClass().equals(clazz))
+        .filter(clazz::isInstance)
         .findFirst()
         .orElse(null);
   }
