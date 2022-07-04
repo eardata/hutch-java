@@ -27,8 +27,8 @@ public class HyenaJob implements Job {
     }
 
     // 找出 HutchConsumer 实例
-    var clazz = context.getJobDetail().getJobDataMap().getString("consumer");
-    var consumer = HutchConsumer.get(clazz);
+    var clazz = context.getJobDetail().getJobDataMap().get("consumerClass");
+    var consumer = HutchConsumer.get((Class<? extends HutchConsumer>) clazz);
     if (consumer == null) {
       throw new IllegalStateException("未找到 HutchConsumer!" + clazz);
     }
