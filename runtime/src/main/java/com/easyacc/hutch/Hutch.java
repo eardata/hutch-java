@@ -429,7 +429,7 @@ public class Hutch implements IHutch {
   protected void initHutchConsumerTrigger(HutchConsumer hc) {
     var threshold = hc.threshold();
     if (threshold != null) {
-      ES.scheduleAtFixedRate(new HyenaJob(hc), threshold.interval(), 1000, TimeUnit.SECONDS);
+      ES.scheduleAtFixedRate(new HyenaJob(hc), 1000, threshold.interval(), TimeUnit.SECONDS);
     }
   }
 
