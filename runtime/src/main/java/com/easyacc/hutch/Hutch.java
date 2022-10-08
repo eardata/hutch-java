@@ -11,7 +11,6 @@ import com.easyacc.hutch.util.HutchUtils;
 import com.easyacc.hutch.util.HutchUtils.Gradient;
 import com.easyacc.hutch.util.RabbitUtils;
 import com.easyacc.hutch.util.RedisUtils;
-import com.easyacc.hutch.util.SchedulerUtils;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -33,6 +32,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -42,12 +43,6 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
-import org.quartz.JobBuilder;
-import org.quartz.JobDataMap;
-import org.quartz.Scheduler;
-import org.quartz.SimpleScheduleBuilder;
-import org.quartz.TriggerBuilder;
-import org.quartz.impl.StdSchedulerFactory;
 import org.slf4j.Logger;
 
 /**
@@ -70,8 +65,8 @@ import org.slf4j.Logger;
 public class Hutch implements IHutch {
   public static final String HUTCH_EXCHANGE = "hutch";
   public static final String HUTCH_SCHEDULE_EXCHANGE = "hutch.schedule";
-
   private static final MessagePropertiesConverter MPC = new DefaultMessagePropertiesConverter();
+  private static final ScheduledExecutorService ES = Executors.newSingleThreadScheduledExecutor();
 
   /** 用于 queue 前缀的应用名, 因为 Quarkus 的 CDI 的机制, 现在需要在 HutchConsumer 初始化之前就设置好, 例如 static {} 代码块中 */
   public static String APP_NAME = "hutch";
@@ -92,7 +87,6 @@ public class Hutch implements IHutch {
   /** 将 consumer 的 connection 与其他的区分开 */
   private Connection connForConsumer;
 
-  private Scheduler scheduler;
   @Getter private StatefulRedisConnection<String, String> redisConnection;
 
   @Getter private boolean isStarted = false;
@@ -336,7 +330,6 @@ public class Hutch implements IHutch {
       currentHutch = this;
 
       // 确保 currentHutch 不为 null
-      initScheduler();
       initRedisClient();
       initHutchConsumerTriggers();
       this.isStarted = true;
@@ -436,29 +429,8 @@ public class Hutch implements IHutch {
   protected void initHutchConsumerTrigger(HutchConsumer hc) {
     var threshold = hc.threshold();
     if (threshold != null) {
-      var job =
-          JobBuilder.newJob(HyenaJob.class)
-              .withIdentity(hc.queue(), Hutch.name())
-              .usingJobData(new JobDataMap(Map.of("consumerClass", hc.getClass())))
-              .build();
-      var trigger =
-          TriggerBuilder.newTrigger()
-              .withIdentity(hc.queue(), Hutch.name())
-              .startNow()
-              .withSchedule(
-                  SimpleScheduleBuilder.simpleSchedule()
-                      .withIntervalInSeconds(threshold.interval())
-                      .repeatForever())
-              .build();
-      this.scheduler.scheduleJob(job, trigger);
+      ES.schedule(new HyenaJob(hc), threshold.interval(), TimeUnit.SECONDS);
     }
-  }
-
-  /** 初始化 Quartz Scheduler */
-  @SneakyThrows
-  protected void initScheduler() {
-    this.scheduler = new StdSchedulerFactory().getScheduler();
-    this.scheduler.start();
   }
 
   /** 初始化 Redis Connection */
@@ -489,7 +461,7 @@ public class Hutch implements IHutch {
         this.hutchConsumers.clear();
       }
     } finally {
-      SchedulerUtils.clear(this.scheduler);
+      ES.shutdown();
       RedisUtils.close(this.redisConnection);
 
       RabbitUtils.closeChannel(this.ch);
