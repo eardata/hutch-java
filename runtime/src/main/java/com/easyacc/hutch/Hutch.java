@@ -66,7 +66,7 @@ public class Hutch implements IHutch {
   public static final String HUTCH_EXCHANGE = "hutch";
   public static final String HUTCH_SCHEDULE_EXCHANGE = "hutch.schedule";
   private static final MessagePropertiesConverter MPC = new DefaultMessagePropertiesConverter();
-  private static final ScheduledExecutorService ES = Executors.newSingleThreadScheduledExecutor();
+  private static final ScheduledExecutorService ES = Executors.newScheduledThreadPool(30);
 
   /** 用于 queue 前缀的应用名, 因为 Quarkus 的 CDI 的机制, 现在需要在 HutchConsumer 初始化之前就设置好, 例如 static {} 代码块中 */
   public static String APP_NAME = "hutch";
@@ -425,11 +425,10 @@ public class Hutch implements IHutch {
   }
 
   /** 初始化 Job Trigger */
-  @SneakyThrows
   protected void initHutchConsumerTrigger(HutchConsumer hc) {
     var threshold = hc.threshold();
     if (threshold != null) {
-      ES.scheduleAtFixedRate(new HyenaJob(hc), 1000, threshold.interval(), TimeUnit.SECONDS);
+      ES.scheduleAtFixedRate(new HyenaJob(hc), 0, threshold.interval(), TimeUnit.SECONDS);
     }
   }
 
