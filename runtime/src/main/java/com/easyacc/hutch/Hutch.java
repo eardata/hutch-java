@@ -11,7 +11,6 @@ import com.easyacc.hutch.util.HutchUtils;
 import com.easyacc.hutch.util.HutchUtils.Gradient;
 import com.easyacc.hutch.util.RabbitUtils;
 import com.easyacc.hutch.util.RedisUtils;
-import com.easyacc.hutch.util.SchedulerUtils;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -44,10 +43,8 @@ import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.quartz.JobBuilder;
 import org.quartz.JobDataMap;
-import org.quartz.Scheduler;
 import org.quartz.SimpleScheduleBuilder;
 import org.quartz.TriggerBuilder;
-import org.quartz.impl.StdSchedulerFactory;
 import org.slf4j.Logger;
 
 /**
@@ -92,7 +89,6 @@ public class Hutch implements IHutch {
   /** 将 consumer 的 connection 与其他的区分开 */
   private Connection connForConsumer;
 
-  private Scheduler scheduler;
   @Getter private StatefulRedisConnection<String, String> redisConnection;
 
   @Getter private boolean isStarted = false;
@@ -332,11 +328,11 @@ public class Hutch implements IHutch {
       declareExchanges();
       declareScheduleQueues();
       declareHutchConsumerQueues();
+
     } finally {
       currentHutch = this;
 
       // 确保 currentHutch 不为 null
-      initScheduler();
       initRedisClient();
       initHutchConsumerTriggers();
       this.isStarted = true;
@@ -387,6 +383,7 @@ public class Hutch implements IHutch {
     }
   }
 
+  /** 启动 Hutch 所有注册的 Consumer */
   protected void declareHutchConsumerQueues() {
     var queues = Hutch.queues();
     log.info(
@@ -450,15 +447,7 @@ public class Hutch implements IHutch {
                       .withIntervalInSeconds(threshold.interval())
                       .repeatForever())
               .build();
-      this.scheduler.scheduleJob(job, trigger);
     }
-  }
-
-  /** 初始化 Quartz Scheduler */
-  @SneakyThrows
-  protected void initScheduler() {
-    this.scheduler = new StdSchedulerFactory().getScheduler();
-    this.scheduler.start();
   }
 
   /** 初始化 Redis Connection */
@@ -489,9 +478,7 @@ public class Hutch implements IHutch {
         this.hutchConsumers.clear();
       }
     } finally {
-      SchedulerUtils.clear(this.scheduler);
       RedisUtils.close(this.redisConnection);
-
       RabbitUtils.closeChannel(this.ch);
       RabbitUtils.closeConnection(this.conn);
       RabbitUtils.closeConnection(this.connForConsumer);
