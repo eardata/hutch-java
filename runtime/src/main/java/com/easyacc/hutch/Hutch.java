@@ -32,6 +32,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -41,10 +43,6 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
-import org.quartz.JobBuilder;
-import org.quartz.JobDataMap;
-import org.quartz.SimpleScheduleBuilder;
-import org.quartz.TriggerBuilder;
 import org.slf4j.Logger;
 
 /**
@@ -67,8 +65,8 @@ import org.slf4j.Logger;
 public class Hutch implements IHutch {
   public static final String HUTCH_EXCHANGE = "hutch";
   public static final String HUTCH_SCHEDULE_EXCHANGE = "hutch.schedule";
-
   private static final MessagePropertiesConverter MPC = new DefaultMessagePropertiesConverter();
+  private static final ScheduledExecutorService ES = Executors.newScheduledThreadPool(30);
 
   /** 用于 queue 前缀的应用名, 因为 Quarkus 的 CDI 的机制, 现在需要在 HutchConsumer 初始化之前就设置好, 例如 static {} 代码块中 */
   public static String APP_NAME = "hutch";
@@ -328,7 +326,6 @@ public class Hutch implements IHutch {
       declareExchanges();
       declareScheduleQueues();
       declareHutchConsumerQueues();
-
     } finally {
       currentHutch = this;
 
@@ -429,24 +426,10 @@ public class Hutch implements IHutch {
   }
 
   /** 初始化 Job Trigger */
-  @SneakyThrows
   protected void initHutchConsumerTrigger(HutchConsumer hc) {
     var threshold = hc.threshold();
     if (threshold != null) {
-      var job =
-          JobBuilder.newJob(HyenaJob.class)
-              .withIdentity(hc.queue(), Hutch.name())
-              .usingJobData(new JobDataMap(Map.of("consumerClass", hc.getClass())))
-              .build();
-      var trigger =
-          TriggerBuilder.newTrigger()
-              .withIdentity(hc.queue(), Hutch.name())
-              .startNow()
-              .withSchedule(
-                  SimpleScheduleBuilder.simpleSchedule()
-                      .withIntervalInSeconds(threshold.interval())
-                      .repeatForever())
-              .build();
+      ES.scheduleAtFixedRate(new HyenaJob(hc), 0, threshold.interval(), TimeUnit.SECONDS);
     }
   }
 
@@ -478,6 +461,7 @@ public class Hutch implements IHutch {
         this.hutchConsumers.clear();
       }
     } finally {
+      ES.shutdown();
       RedisUtils.close(this.redisConnection);
       RabbitUtils.closeChannel(this.ch);
       RabbitUtils.closeConnection(this.conn);
