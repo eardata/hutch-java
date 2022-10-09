@@ -6,12 +6,10 @@ import io.quarkus.runtime.annotations.ConfigItem;
 import io.quarkus.runtime.annotations.ConfigPhase;
 import io.quarkus.runtime.annotations.ConfigRoot;
 import io.quarkus.runtime.annotations.StaticInitSafe;
-import io.smallrye.context.SmallRyeManagedExecutor;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import javax.enterprise.inject.spi.CDI;
 import lombok.ToString;
 
 /** 提供配置 Hutch 的配置. 需要是 StaticInitSafe 状态, 能够在 static 的时候就开始处理 */
@@ -55,16 +53,12 @@ public class HutchConfig {
   @ConfigItem(defaultValue = "redis://localhost:6379")
   public String redisUrl;
 
-  /** 从 IOC 中获取默认的那个 Executors */
+  /** 获取全局默认的那个 Executors */
   public static ExecutorService getSharedExecutor() {
-    try {
-      return CDI.current().select(SmallRyeManagedExecutor.class).get();
-    } catch (NoClassDefFoundError e) {
-      if (sharedExecutor == null) {
-        sharedExecutor = Executors.newCachedThreadPool();
-      }
-      return sharedExecutor;
+    if (sharedExecutor == null) {
+      sharedExecutor = Executors.newCachedThreadPool();
     }
+    return sharedExecutor;
   }
 
   /**

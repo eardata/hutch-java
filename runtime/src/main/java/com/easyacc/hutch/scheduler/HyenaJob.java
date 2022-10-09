@@ -8,41 +8,39 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
-import org.quartz.Job;
-import org.quartz.JobExecutionContext;
 
 /** 提供基于 redis 主动式 hutch scheduler job */
 @Slf4j
-public class HyenaJob implements Job {
+public class HyenaJob implements Runnable {
   /** 需要执行的 redis keys */
   private List<String> redisKeys = new ArrayList<>();
   /** 缓存最后更新时间 */
   private Instant updatedAt = Instant.now().minusSeconds(11);
 
+  private HutchConsumer hc;
+
+  public HyenaJob(HutchConsumer hutchConsumer) {
+    this.hc = hutchConsumer;
+  }
+
   @Override
-  public void execute(JobExecutionContext context) {
+  public void run() {
     // 检查 Hutch 是否启动
     if (Hutch.current() == null) {
-      throw new IllegalStateException("Hutch 还未启动!");
-    }
-
-    // 找出 HutchConsumer 实例
-    var clazz = context.getJobDetail().getJobDataMap().get("consumerClass");
-    var consumer = HutchConsumer.get((Class<? extends HutchConsumer>) clazz);
-    if (consumer == null) {
-      throw new IllegalStateException("未找到 HutchConsumer!" + clazz);
+      log.error("Hutch 还未启动!");
+      return;
     }
 
     // 检查 threshold 参数
-    var threshold = consumer.threshold();
+    var threshold = this.hc.threshold();
     if (threshold == null) {
-      throw new IllegalStateException("未找到 threshold 参数!" + clazz);
+      throw new IllegalStateException("未找到 threshold 参数!" + hc.getClass());
     }
 
     // 1. 获取 redis 实例
     var redis = Hutch.current().getRedisConnection().sync();
     // 2. 尝试刷新一次 redis keys
-    this.reloadRedisKeys(consumer.queue(), redis);
+    this.reloadRedisKeys(this.hc.queue(), redis);
     // 3. 从 redis 中获取 task
     for (var key : this.redisKeys) {
       var tasks = redis.zrange(key, 0, threshold.rate() - 1);
