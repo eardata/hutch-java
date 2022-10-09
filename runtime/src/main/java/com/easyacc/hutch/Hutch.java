@@ -15,6 +15,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
+import com.google.common.base.Strings;
 import com.rabbitmq.client.AMQP.BasicProperties;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
@@ -35,6 +36,7 @@ import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -66,7 +68,7 @@ public class Hutch implements IHutch {
   public static final String HUTCH_EXCHANGE = "hutch";
   public static final String HUTCH_SCHEDULE_EXCHANGE = "hutch.schedule";
   private static final MessagePropertiesConverter MPC = new DefaultMessagePropertiesConverter();
-  private static final ScheduledExecutorService ES = Executors.newScheduledThreadPool(30);
+  private static final ReentrantLock lock = new ReentrantLock();
 
   /** 用于 queue 前缀的应用名, 因为 Quarkus 的 CDI 的机制, 现在需要在 HutchConsumer 初始化之前就设置好, 例如 static {} 代码块中 */
   public static String APP_NAME = "hutch";
@@ -77,6 +79,9 @@ public class Hutch implements IHutch {
   private static Set<HutchConsumer> consumers;
 
   private final Map<String, List<SimpleConsumer>> hutchConsumers;
+
+  /** 定时任务的 ExecutorService */
+  private ScheduledExecutorService scheduledExecutor;
 
   @Getter private final HutchConfig config;
 
@@ -321,20 +326,23 @@ public class Hutch implements IHutch {
     if (this.isStarted) {
       return this;
     }
+
     try {
+      lock.lock();
+      initScheduleExecutor();
+
       connect();
       declareExchanges();
       declareScheduleQueues();
       declareHutchConsumerQueues();
     } finally {
       currentHutch = this;
-
       // 确保 currentHutch 不为 null
       initRedisClient();
       initHutchConsumerTriggers();
       this.isStarted = true;
+      lock.unlock();
     }
-
     return this;
   }
 
@@ -428,16 +436,26 @@ public class Hutch implements IHutch {
   /** 初始化 Job Trigger */
   protected void initHutchConsumerTrigger(HutchConsumer hc) {
     var threshold = hc.threshold();
-    if (threshold != null) {
-      ES.scheduleAtFixedRate(new HyenaJob(hc), 0, threshold.interval(), TimeUnit.SECONDS);
+    if (threshold == null) {
+      return;
     }
+    scheduledExecutor.scheduleAtFixedRate(
+        new HyenaJob(hc), 0, threshold.interval(), TimeUnit.SECONDS);
   }
 
   /** 初始化 Redis Connection */
   protected void initRedisClient() {
-    if (this.config.redisUrl != null) {
-      this.redisConnection = RedisClient.create(this.config.redisUrl).connect();
+    if (Strings.isNullOrEmpty(this.config.redisUrl)) {
+      return;
     }
+    this.redisConnection = RedisClient.create(this.config.redisUrl).connect();
+    log.debug("初始化 redis 连接: {}", this.config.redisUrl);
+  }
+
+  /** 每个实例拥有一个自己的 ScheduleExecutor. 并且 shutdown 之后, 需要重新构建一个 */
+  protected void initScheduleExecutor() {
+    this.scheduledExecutor =
+        Executors.newScheduledThreadPool(Runtime.getRuntime().availableProcessors());
   }
 
   /**
@@ -451,9 +469,10 @@ public class Hutch implements IHutch {
    * </ul>
    */
   @Override
-  public synchronized void stop() {
-    log.info("Stop Hutch");
+  public void stop() {
     try {
+      lock.lock();
+      log.info("Stop Hutch");
       if (this.isStarted) {
         for (var q : this.hutchConsumers.keySet()) {
           this.hutchConsumers.get(q).forEach(SimpleConsumer::close);
@@ -461,12 +480,13 @@ public class Hutch implements IHutch {
         this.hutchConsumers.clear();
       }
     } finally {
-      ES.shutdown();
+      scheduledExecutor.shutdownNow();
       RedisUtils.close(this.redisConnection);
       RabbitUtils.closeChannel(this.ch);
       RabbitUtils.closeConnection(this.conn);
       RabbitUtils.closeConnection(this.connForConsumer);
       this.isStarted = false;
+      lock.unlock();
     }
   }
 
