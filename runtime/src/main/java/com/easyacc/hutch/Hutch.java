@@ -138,32 +138,6 @@ public class Hutch implements IHutch {
     publish(HutchConsumer.rk(consumer), props, body);
   }
 
-  /** 最原始的发送 bytes */
-  public static void publish(String routingKey, BasicProperties props, byte[] body) {
-    publish(Hutch.HUTCH_EXCHANGE, routingKey, props, body);
-  }
-
-  public static void publish(
-      String exchange, String routingKey, BasicProperties props, byte[] body) {
-    if (current() == null) {
-      throw new IllegalStateException("Hutch is not started");
-    }
-    if (!current().isStarted()) {
-      log.warn("Hutch({}) is not started, publish message failed", current());
-      return;
-    }
-    try {
-      log.debug("publish message to {} with routingKey {}", exchange, routingKey);
-      current().getCh().basicPublish(exchange, routingKey, props, body);
-    } catch (IOException e) {
-      if (Hutch.HUTCH_SCHEDULE_EXCHANGE.equals(exchange)) {
-        Hutch.log().error("publish with delay error", e);
-      } else {
-        Hutch.log().error("publish error", e);
-      }
-    }
-  }
-
   /** 直接当做 JSON 发送 - HutchConsumer */
   public static void publishJson(Class<? extends HutchConsumer> consumer, Object msg) {
     publishJson(HutchConsumer.rk(consumer), msg);
@@ -206,7 +180,7 @@ public class Hutch implements IHutch {
     byte[] body;
     try {
       body = om().writeValueAsBytes(msg);
-      internalPublishWithDelay(delayInMs, props.build(), body);
+      publishWithDelay(delayInMs, props.build(), body);
     } catch (JsonProcessingException e) {
       Hutch.log().error("publishJson error", e);
     }
@@ -255,7 +229,7 @@ public class Hutch implements IHutch {
    * @param msg 具体的 Message 消息
    */
   public static void publishMessageWithDelay(long delayInMs, String routingKey, Message msg) {
-    Hutch.internalPublishWithDelay(
+    Hutch.publishWithDelay(
         delayInMs,
         convertToDelayProps(routingKey, msg.getMessageProperties(), delayInMs),
         msg.getBody());
@@ -269,11 +243,47 @@ public class Hutch implements IHutch {
             routingKey);
   }
 
+  // ----------------- default publish ------------------
+  /** 最原始的发送 bytes */
+  public static void publish(String routingKey, BasicProperties props, byte[] body) {
+    publish(Hutch.HUTCH_EXCHANGE, routingKey, props, body);
+  }
+
   /** 向延迟队列中发布消息 */
-  static void internalPublishWithDelay(long delayInMs, BasicProperties props, byte[] body) {
+  public static void publishWithDelay(long delayInMs, BasicProperties props, byte[] body) {
     var fixDelay = HutchUtils.fixDealyTime(delayInMs);
     publish(Hutch.HUTCH_SCHEDULE_EXCHANGE, Hutch.delayRoutingKey(fixDelay), props, body);
   }
+
+  /**
+   * 最核心的 publish 方法
+   *
+   * @param exchange 指定 exchange
+   * @param routingKey 指定 routingKey
+   * @param props 指定消息的 props
+   * @param body 指定二进制的 body
+   */
+  public static void publish(
+      String exchange, String routingKey, BasicProperties props, byte[] body) {
+    if (current() == null) {
+      throw new IllegalStateException("Hutch is not started");
+    }
+    if (!current().isStarted()) {
+      log.warn("Hutch({}) is not started, publish message failed", current());
+      return;
+    }
+    try {
+      log.debug("publish message to {} with routingKey {}", exchange, routingKey);
+      current().getCh().basicPublish(exchange, routingKey, props, body);
+    } catch (IOException e) {
+      if (Hutch.HUTCH_SCHEDULE_EXCHANGE.equals(exchange)) {
+        Hutch.log().error("publish with delay error", e);
+      } else {
+        Hutch.log().error("publish error", e);
+      }
+    }
+  }
+  // ----------------
 
   /** 处理 Delay Message 需要处理的 header 信息等等, 保留原来消息中的 props header 等信息 */
   public static BasicProperties convertToDelayProps(
@@ -416,6 +426,12 @@ public class Hutch implements IHutch {
     }
   }
 
+  /** 每个实例拥有一个自己的 ScheduleExecutor. 并且 shutdown 之后, 需要重新构建一个 */
+  protected void initScheduleExecutor() {
+    this.scheduledExecutor =
+        Executors.newScheduledThreadPool(Runtime.getRuntime().availableProcessors());
+  }
+
   protected void initHutchConsumer(HutchConsumer hc) {
     // Ref: https://github.com/rabbitmq/rabbitmq-perf-test/issues/93
     // 所有的队列保持一个 connection, 实际使用, 队列会非常多, 数量很容易增加到 30 个以上
@@ -450,12 +466,6 @@ public class Hutch implements IHutch {
     }
     this.redisConnection = RedisClient.create(this.config.redisUrl).connect();
     log.debug("初始化 redis 连接: {}", this.config.redisUrl);
-  }
-
-  /** 每个实例拥有一个自己的 ScheduleExecutor. 并且 shutdown 之后, 需要重新构建一个 */
-  protected void initScheduleExecutor() {
-    this.scheduledExecutor =
-        Executors.newScheduledThreadPool(Runtime.getRuntime().availableProcessors());
   }
 
   /**
