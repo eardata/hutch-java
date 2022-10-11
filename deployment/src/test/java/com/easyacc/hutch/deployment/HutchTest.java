@@ -58,6 +58,7 @@ class HutchTest {
   void testHutchConfig() throws InterruptedException, IOException {
     var cfg = CDI.current().select(HutchConfig.class).get();
     assertThat(cfg).isNotNull();
+    assertThat(cfg.schdulePoolSize).isEqualTo(6);
 
     assertThat(cfg.name).isEqualTo("lake_web");
     assertThat(Hutch.name()).isEqualTo("lake_web");

@@ -428,8 +428,7 @@ public class Hutch implements IHutch {
 
   /** 每个实例拥有一个自己的 ScheduleExecutor. 并且 shutdown 之后, 需要重新构建一个 */
   protected void initScheduleExecutor() {
-    this.scheduledExecutor =
-        Executors.newScheduledThreadPool(Runtime.getRuntime().availableProcessors());
+    this.scheduledExecutor = Executors.newScheduledThreadPool(this.config.schdulePoolSize);
   }
 
   protected void initHutchConsumer(HutchConsumer hc) {

@@ -53,6 +53,10 @@ public class HutchConfig {
   @ConfigItem(defaultValue = "redis://localhost:6379")
   public String redisUrl;
 
+  /** 默认的 scheduleExecutor 的 thread pool 数量. 如果只有 1 个, 那么 scheudle 的任务执行时间过长, 会阻塞 */
+  @ConfigItem(defaultValue = "6")
+  public int schdulePoolSize;
+
   /** 获取全局默认的那个 Executors */
   public static ExecutorService getSharedExecutor() {
     if (sharedExecutor == null) {
