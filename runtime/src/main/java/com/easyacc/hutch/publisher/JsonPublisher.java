@@ -29,20 +29,25 @@ public interface JsonPublisher {
     Hutch.publish(routingKey, props.build(), body);
   }
 
-  /** 利用 HutchConsumer, 延迟一定时间, 将 Object 转为 json 发送消息 */
-  static void publishWithDelay(int delay, Class<? extends HutchConsumer> consumer, Object msg) {
-    publishWithDelay(delay, HutchConsumer.rk(consumer), msg);
+  /**
+   * 利用 HutchConsumer, 延迟一定时间, 将 Object 转为 json 发送消息
+   *
+   * @param delayInSec 梯度延迟的时间, 单位 s
+   */
+  static void publishWithDelay(
+      int delayInSec, Class<? extends HutchConsumer> consumer, Object msg) {
+    publishWithDelay(delayInSec, HutchConsumer.rk(consumer), msg);
   }
 
   /**
    * 指定 routing-key, 延迟一定时间, 将 Object 转为 json 发送消息
    *
-   * @param delay 梯度延迟的时间, 单位 s
+   * @param delayInSec 梯度延迟的时间, 单位 s
    * @param routingKey 消息的 routing-key
    * @param msg 具体的 json 格式的消息体
    */
-  static void publishWithDelay(int delay, String routingKey, Object msg) {
-    var delayInMs = delay * 1000L;
+  static void publishWithDelay(int delayInSec, String routingKey, Object msg) {
+    var delayInMs = delayInSec * 1000L;
 
     var props =
         new BasicProperties()

@@ -12,7 +12,6 @@ import com.easyacc.hutch.util.HutchUtils.Gradient;
 import com.easyacc.hutch.util.RabbitUtils;
 import com.easyacc.hutch.util.RedisUtils;
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.google.common.base.Strings;
@@ -25,7 +24,6 @@ import io.quarkus.runtime.LaunchMode;
 import java.io.IOException;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
@@ -121,81 +119,8 @@ public class Hutch implements IHutch {
         HUTCH_SCHEDULE_EXCHANGE, TimeUnit.SECONDS.convert(fixedDelay, TimeUnit.MILLISECONDS));
   }
 
-  /** 发送字符串 - HutchConsumer */
-  public static void publish(Class<? extends HutchConsumer> consumer, String msg) {
-    publish(HutchConsumer.rk(consumer), msg);
-  }
-
-  /** 发送字符串 */
-  public static void publish(String routingKey, String msg) {
-    var props = new BasicProperties().builder().contentType("text/plain").contentEncoding("UTF-8");
-    publish(routingKey, props.build(), msg.getBytes());
-  }
-
-  /** 最原始的发送 bytes - HutchConsumer */
-  public static void publish(
-      Class<? extends HutchConsumer> consumer, BasicProperties props, byte[] body) {
-    publish(HutchConsumer.rk(consumer), props, body);
-  }
-
-  /** 直接当做 JSON 发送 - HutchConsumer */
-  public static void publishJson(Class<? extends HutchConsumer> consumer, Object msg) {
-    publishJson(HutchConsumer.rk(consumer), msg);
-  }
-
-  /** 直接当做 JSON 发送 */
-  public static void publishJson(String routingKey, Object msg) {
-    var props =
-        new BasicProperties().builder().contentType("application/json").contentEncoding("UTF-8");
-    byte[] body = new byte[0];
-    try {
-      body = om().writeValueAsBytes(msg);
-    } catch (JsonProcessingException e) {
-      Hutch.log().error("publishJson error", e);
-    }
-    publish(routingKey, props.build(), body);
-  }
-
-  /** 向 routing-key 对应的队列发送一个延迟消息 - HutchConsumer */
-  public static void publishJsonWithDelay(
-      long delayInMs, Class<? extends HutchConsumer> consumer, Object msg) {
-    publishJsonWithDelay(delayInMs, HutchConsumer.rk(consumer), msg);
-  }
-
-  /**
-   * 向 routing-key 对应的队列发送一个延迟消息
-   *
-   * @param delayInMs 梯度延迟的时间, 单位 ms
-   * @param routingKey 消息的 routing-key
-   * @param msg 具体的 json 格式的消息体
-   */
-  public static void publishJsonWithDelay(long delayInMs, String routingKey, Object msg) {
-    var props =
-        new BasicProperties()
-            .builder()
-            .contentType("application/json")
-            .expiration(HutchUtils.fixDealyTime(delayInMs) + "")
-            .headers(Collections.singletonMap("CC", List.of(routingKey)))
-            .contentEncoding("UTF-8");
-    byte[] body;
-    try {
-      body = om().writeValueAsBytes(msg);
-      publishWithDelay(delayInMs, props.build(), body);
-    } catch (JsonProcessingException e) {
-      Hutch.log().error("publishJson error", e);
-    }
-  }
-
-  /** 直接使用 JSON 进行 schedule publish */
-  public static void publishJsonWithSchedule(Class<? extends HutchConsumer> consumer, Object msg) {
-    try {
-      publishWithSchedule(consumer, om().writeValueAsString(msg));
-    } catch (JsonProcessingException e) {
-      Hutch.log().error("publishJson error", e);
-    }
-  }
-
   /** 进行 schedule publish */
+  @Deprecated(since = "走 limit")
   public static void publishWithSchedule(Class<? extends HutchConsumer> consumer, String msg) {
     // 寻找到对应的 Consumer 实例
     var hc = HutchConsumer.get(consumer);

@@ -6,6 +6,8 @@ import com.easyacc.hutch.Hutch;
 import com.easyacc.hutch.config.HutchConfig;
 import com.easyacc.hutch.core.HutchConsumer;
 import com.easyacc.hutch.error_handlers.NoDelayMaxRetry;
+import com.easyacc.hutch.publisher.BodyPublisher;
+import com.easyacc.hutch.publisher.JsonPublisher;
 import io.quarkus.test.QuarkusUnitTest;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
@@ -81,7 +83,7 @@ class HutchQuorumTest {
     var q = h.getCh().queueDeclarePassive(abcConsumer.queue());
 
     abcConsumer.enqueue("abc");
-    Hutch.publish(AbcConsumer.class, "ccc");
+    BodyPublisher.publish(AbcConsumer.class, "ccc");
 
     Thread.sleep(100);
     q = h.getCh().queueDeclarePassive(abcConsumer.queue());
@@ -109,7 +111,7 @@ class HutchQuorumTest {
     assertThat(h.isStarted()).isFalse();
     h.start();
     assertThat(h).isEqualTo(Hutch.current());
-    Hutch.publish(BbcConsumer.class, "bbc");
+    BodyPublisher.publish(BbcConsumer.class, "bbc");
     TimeUnit.SECONDS.sleep(6);
     assertThat(BbcConsumer.Timers.get()).isEqualTo(2);
     h.stop();
@@ -121,7 +123,7 @@ class HutchQuorumTest {
     HutchConfig.getErrorHandlers().add(new NoDelayMaxRetry());
     var h = CDI.current().select(Hutch.class).get();
     h.start();
-    Hutch.publishJsonWithDelay(1000, AbcConsumer.class, "ccc");
+    JsonPublisher.publishWithDelay(1, AbcConsumer.class, "ccc");
     var a = AbcConsumer.Timers.get();
     // 等待在 5s 以内
     TimeUnit.SECONDS.sleep(2);
