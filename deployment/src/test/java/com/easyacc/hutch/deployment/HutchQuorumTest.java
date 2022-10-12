@@ -4,7 +4,6 @@ import static com.google.common.truth.Truth.assertThat;
 
 import com.easyacc.hutch.Hutch;
 import com.easyacc.hutch.config.HutchConfig;
-import com.easyacc.hutch.core.HutchConsumer;
 import com.easyacc.hutch.error_handlers.NoDelayMaxRetry;
 import com.easyacc.hutch.publisher.BodyPublisher;
 import com.easyacc.hutch.publisher.JsonPublisher;
@@ -28,47 +27,8 @@ class HutchQuorumTest {
           //                    .overrideConfigKey("quarkus.log.level", "debug")
           .withApplicationRoot(jar -> jar.addClass(AbcConsumer.class).addClass(BbcConsumer.class));
 
-  @Inject AbcConsumer abcConsumer;
   @Inject HutchConfig config;
-
-  @Test
-  void testHutchConsumerAllInCDI() {
-    var hcs = Hutch.consumers();
-    assertThat(hcs).hasSize(2);
-    hcs.forEach(hc -> assertThat(hc.queueArguments()).isEmpty());
-  }
-
-  @Test
-  void testLoadBeanFromCDI() {
-    var beans = CDI.current().getBeanManager().getBeans(HutchConsumer.class);
-    for (var bean : beans) {
-      var h = (HutchConsumer) CDI.current().select(bean.getBeanClass()).get();
-      assertThat(h.prefetch()).isEqualTo(2);
-      assertThat(h.queue()).startsWith("lake_web_");
-      System.out.println(h.queue());
-    }
-  }
-
-  @Test
-  void hutchInIOC() {
-    // 测试提供一个 Hutch 在 IOC 里面
-    var h = CDI.current().select(Hutch.class).get();
-    assertThat(h).isNotNull();
-    assertThat(h.isStarted()).isFalse();
-  }
-
-  @Test
-  void testHutchConfig() throws InterruptedException, IOException {
-    var cfg = CDI.current().select(HutchConfig.class).get();
-    assertThat(cfg).isNotNull();
-
-    assertThat(cfg.name).isEqualTo("lake_web");
-    assertThat(Hutch.name()).isEqualTo("lake_web");
-    var h = new Hutch(cfg).start();
-    assertThat(h.isStarted()).isTrue();
-    h.stop();
-    assertThat(h.isStarted()).isFalse();
-  }
+  @Inject AbcConsumer abcConsumer;
 
   @Test
   void testEnqueue() throws IOException, InterruptedException {
@@ -92,14 +52,6 @@ class HutchQuorumTest {
     assertThat(AbcConsumer.Timers.get()).isEqualTo(2);
     h.stop();
     assertThat(h.isStarted()).isFalse();
-  }
-
-  @Test
-  void testAdditionalBean() {
-    var s = CDI.current().select(Hutch.class).get();
-    assertThat(s).isNotNull();
-    assertThat(s.isStarted()).isFalse();
-    assertThat(s.getConfig()).isEqualTo(config);
   }
 
   @Test
