@@ -8,7 +8,6 @@ import java.util.HashMap;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
-/** Created by IntelliJ IDEA. User: wyatt Date: 2022/3/19 Time: 07:23 */
 public class SimpleConsumerTest {
   /** 测试获取最大重试次数代码 */
   @Test
