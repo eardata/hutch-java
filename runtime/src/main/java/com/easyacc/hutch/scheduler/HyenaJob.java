@@ -67,6 +67,7 @@ public class HyenaJob implements Runnable {
 
     // 通过 Hutch 来 publish 出去
     threshold.publish(tasks);
+    // TODO: 默认应该按照原来的 message body 原封不动的重新发送出去. 如果有自定义的 Publish 方法则使用他
     // 从 redis 队列中移除 tasks
     Hutch.redis().zrem(key, tasks.toArray(String[]::new));
   }
