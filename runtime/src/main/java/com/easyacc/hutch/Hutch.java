@@ -264,6 +264,11 @@ public class Hutch implements IHutch {
   /** 启动 Hutch 实例, 并且每次启动成功都将重置 currentHutch */
   @Override
   public Hutch start() {
+    if (!this.config.enable) {
+      log.info("Hutch is disabled by config property and will not be started");
+      return this;
+    }
+
     if (this.isStarted) {
       return this;
     }

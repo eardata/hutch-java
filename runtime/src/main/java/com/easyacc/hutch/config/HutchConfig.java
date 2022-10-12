@@ -21,6 +21,10 @@ public class HutchConfig {
 
   private static List<ErrorHandler> errorHandlers;
 
+  /** 是否默认启动 */
+  @ConfigItem(defaultValue = "true")
+  public boolean enable;
+
   /** Hutch 的 prefix 前缀名称 */
   @ConfigItem(defaultValue = "hutch")
   public String name;
