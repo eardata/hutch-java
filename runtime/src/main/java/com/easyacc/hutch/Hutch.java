@@ -169,6 +169,12 @@ public class Hutch implements IHutch {
   }
 
   // ----------------- default publish ------------------
+  /** 最原始的发送 bytes - HutchConsumer */
+  public static void publish(
+      Class<? extends HutchConsumer> consumer, BasicProperties props, byte[] body) {
+    publish(HutchConsumer.rk(consumer), props, body);
+  }
+
   /** 最原始的发送 bytes */
   public static void publish(String routingKey, BasicProperties props, byte[] body) {
     publish(Hutch.HUTCH_EXCHANGE, routingKey, props, body);

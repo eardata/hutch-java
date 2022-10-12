@@ -5,11 +5,17 @@ import com.easyacc.hutch.core.HutchConsumer;
 import com.easyacc.hutch.util.HutchUtils;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.rabbitmq.client.AMQP.BasicProperties;
+import com.rabbitmq.client.AMQP.BasicProperties.Builder;
 import java.util.Collections;
 import java.util.List;
 
 /** 单独将 Json 的消息的 Publisher 独立出来 */
 public interface JsonPublisher {
+
+  /** 提供默认 json 的参数 */
+  static Builder amqpBuilder() {
+    return new BasicProperties().builder().contentType("application/json").contentEncoding("UTF-8");
+  }
 
   /** 利用 HutchConsumer 将 Object 转为 json 发送消息 */
   static void publish(Class<? extends HutchConsumer> consumer, Object msg) {
@@ -18,15 +24,13 @@ public interface JsonPublisher {
 
   /** 指定 routing-key 将 Object 转为 json 发送消息 */
   static void publish(String routingKey, Object msg) {
-    var props =
-        new BasicProperties().builder().contentType("application/json").contentEncoding("UTF-8");
     byte[] body = new byte[0];
     try {
       body = Hutch.om().writeValueAsBytes(msg);
     } catch (JsonProcessingException e) {
       Hutch.log().error("publishJson error", e);
     }
-    Hutch.publish(routingKey, props.build(), body);
+    Hutch.publish(routingKey, amqpBuilder().build(), body);
   }
 
   /**
@@ -50,15 +54,11 @@ public interface JsonPublisher {
     var delayInMs = delayInSec * 1000L;
 
     var props =
-        new BasicProperties()
-            .builder()
-            .contentType("application/json")
+        amqpBuilder()
             .expiration(HutchUtils.fixDealyTime(delayInMs) + "")
-            .headers(Collections.singletonMap("CC", List.of(routingKey)))
-            .contentEncoding("UTF-8");
-    byte[] body;
+            .headers(Collections.singletonMap("CC", List.of(routingKey)));
     try {
-      body = Hutch.om().writeValueAsBytes(msg);
+      var body = Hutch.om().writeValueAsBytes(msg);
       Hutch.publishWithDelay(delayInMs, props.build(), body);
     } catch (JsonProcessingException e) {
       Hutch.log().error("publishJson error", e);
