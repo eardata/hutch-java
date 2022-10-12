@@ -3,6 +3,7 @@ package com.easyacc.hutch;
 import com.easyacc.hutch.config.HutchConfig;
 import com.easyacc.hutch.core.HutchConsumer;
 import com.easyacc.hutch.core.MessageProperties;
+import com.easyacc.hutch.publisher.LimitPublisher;
 import com.easyacc.hutch.scheduler.HyenaJob;
 import com.easyacc.hutch.support.DefaultMessagePropertiesConverter;
 import com.easyacc.hutch.support.MessagePropertiesConverter;
@@ -19,6 +20,7 @@ import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import io.lettuce.core.RedisClient;
 import io.lettuce.core.api.StatefulRedisConnection;
+import io.lettuce.core.api.sync.RedisCommands;
 import io.quarkus.runtime.LaunchMode;
 import java.io.IOException;
 import java.sql.Timestamp;
@@ -28,15 +30,12 @@ import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.function.Predicate;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import javax.enterprise.inject.spi.CDI;
 import lombok.Getter;
 import lombok.Setter;
@@ -107,6 +106,10 @@ public class Hutch implements IHutch {
     return currentHutch;
   }
 
+  public static RedisCommands<String, String> redis() {
+    return current().redisConnection.sync();
+  }
+
   public static Logger log() {
     return log;
   }
@@ -128,21 +131,9 @@ public class Hutch implements IHutch {
   public static void publishWithSchedule(Class<? extends HutchConsumer> consumer, String msg) {
     // 寻找到对应的 Consumer 实例
     var hc = HutchConsumer.get(consumer);
-    if (hc == null) {
-      throw new IllegalStateException("未找到 HutchConsumer 实例!" + consumer);
-    }
-
-    var threshold = hc.threshold();
-    if (threshold == null) {
-      throw new IllegalStateException("未找到 threshold 参数!" + hc.getClass());
-    }
 
     // 使用 msg 计算出 key 作为 redis key 的 suffix
-    var key =
-        Stream.of(hc.queue(), threshold.key(msg))
-            .filter(Objects::nonNull)
-            .filter(Predicate.not(String::isBlank))
-            .collect(Collectors.joining("."));
+    var key = LimitPublisher.zsetKey(hc, msg);
     Hutch.current()
         .getRedisConnection()
         .sync()

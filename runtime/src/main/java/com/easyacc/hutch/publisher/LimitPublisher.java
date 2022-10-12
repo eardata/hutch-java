@@ -1,5 +1,11 @@
 package com.easyacc.hutch.publisher;
 
+import com.easyacc.hutch.core.HutchConsumer;
+import java.util.Objects;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
 /**
  * 将 Hutch 需要对三方 api 进行 ratelimite 的操作独立出来, 不与标准的 Hutch.publish 共用.
  *
@@ -10,4 +16,27 @@ package com.easyacc.hutch.publisher;
  *   3. 为每一个使用了 Threshold 的 Consumer 注册一个新的 Driver Job, 根据设置的频率与任务量进行获取与调度
  * </pre>
  */
-public class LimitPublisher {}
+public interface LimitPublisher {
+
+  /** 利用 HutchConsumer 将 Object 转为 json 发送消息 */
+  static void publish(Class<? extends HutchConsumer> consumer, Object msg) {
+    // TODO
+  }
+
+  /**
+   * 使用 msg 计算出 key 作为 redis key 的 suffix
+   *
+   * @param hc {@link HutchConsumer}
+   * @param msg HutchConsumer 的消息的 String 格式
+   * @return 作为 redis zset 的 key
+   */
+  static String zsetKey(HutchConsumer hc, String msg) {
+    Objects.requireNonNull(hc, "HutchConsumer 实例不能为空");
+    Objects.requireNonNull(hc.threshold(), "HutchConsumer 的 threshold 参数不能为空");
+
+    return Stream.of(hc.queue(), hc.threshold().key(msg))
+        .filter(Objects::nonNull)
+        .filter(Predicate.not(String::isBlank))
+        .collect(Collectors.joining("."));
+  }
+}
