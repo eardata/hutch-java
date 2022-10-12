@@ -2,7 +2,6 @@ package com.easyacc.hutch;
 
 import com.easyacc.hutch.config.HutchConfig;
 import com.easyacc.hutch.core.HutchConsumer;
-import com.easyacc.hutch.core.Message;
 import com.easyacc.hutch.core.MessageProperties;
 import com.easyacc.hutch.scheduler.HyenaJob;
 import com.easyacc.hutch.support.DefaultMessagePropertiesConverter;
@@ -112,11 +111,16 @@ public class Hutch implements IHutch {
     return log;
   }
 
-  /** 使用 fixedDelay (ms) 的 routing_key. ex: hutch.exchange.5s */
-  public static String delayRoutingKey(long fixedDelay) {
+  /**
+   * 使用 delayInMs (ms) 的 routing_key. ex: hutch.exchange.5s
+   *
+   * @param delayInMs 传入需要延迟的时间(ms), 自动计算到对应的 routing-key
+   */
+  public static String delayRoutingKey(long delayInMs) {
     return String.format(
         "%s.%ss",
-        HUTCH_SCHEDULE_EXCHANGE, TimeUnit.SECONDS.convert(fixedDelay, TimeUnit.MILLISECONDS));
+        HUTCH_SCHEDULE_EXCHANGE,
+        TimeUnit.SECONDS.convert(HutchUtils.fixDealyTime(delayInMs), TimeUnit.MILLISECONDS));
   }
 
   /** 进行 schedule publish */
@@ -146,28 +150,6 @@ public class Hutch implements IHutch {
         .zadd(key, Timestamp.valueOf(LocalDateTime.now()).getTime(), msg);
   }
 
-  /**
-   * 发送 Delay 的 Message
-   *
-   * @param routingKey 具体的路由的 routingKey
-   * @param delayInMs 延迟的时间, 单位 ms
-   * @param msg 具体的 Message 消息
-   */
-  public static void publishMessageWithDelay(long delayInMs, String routingKey, Message msg) {
-    Hutch.publishWithDelay(
-        delayInMs,
-        convertToDelayProps(routingKey, msg.getMessageProperties(), delayInMs),
-        msg.getBody());
-
-    var fixDelay = HutchUtils.fixDealyTime(delayInMs);
-    Hutch.log()
-        .debug(
-            "publish with delay {} using routing_key {} and origin routing_key: {}",
-            fixDelay,
-            Hutch.delayRoutingKey(fixDelay),
-            routingKey);
-  }
-
   // ----------------- default publish ------------------
   /** 最原始的发送 bytes - HutchConsumer */
   public static void publish(
@@ -182,8 +164,7 @@ public class Hutch implements IHutch {
 
   /** 向延迟队列中发布消息 */
   public static void publishWithDelay(long delayInMs, BasicProperties props, byte[] body) {
-    var fixDelay = HutchUtils.fixDealyTime(delayInMs);
-    publish(Hutch.HUTCH_SCHEDULE_EXCHANGE, Hutch.delayRoutingKey(fixDelay), props, body);
+    publish(Hutch.HUTCH_SCHEDULE_EXCHANGE, Hutch.delayRoutingKey(delayInMs), props, body);
   }
 
   /**
