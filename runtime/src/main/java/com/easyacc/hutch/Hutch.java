@@ -257,7 +257,7 @@ public class Hutch implements IHutch {
 
   /** 启动 Hutch 实例, 并且每次启动成功都将重置 currentHutch */
   @Override
-  public synchronized Hutch start() {
+  public Hutch start() {
     if (this.isStarted) {
       return this;
     }
