@@ -28,7 +28,7 @@ public interface JsonPublisher {
     try {
       body = Hutch.om().writeValueAsBytes(msg);
     } catch (JsonProcessingException e) {
-      Hutch.log().error("publishJson error", e);
+      Hutch.log().error("JsonPublisher.publish error", e);
     }
     Hutch.publish(routingKey, amqpBuilder().build(), body);
   }
@@ -61,7 +61,7 @@ public interface JsonPublisher {
       var body = Hutch.om().writeValueAsBytes(msg);
       Hutch.publishWithDelay(delayInMs, props.build(), body);
     } catch (JsonProcessingException e) {
-      Hutch.log().error("publishJson error", e);
+      Hutch.log().error("JsonPublisher.publishWithDelay error", e);
     }
   }
 }

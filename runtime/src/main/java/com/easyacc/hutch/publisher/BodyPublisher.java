@@ -3,9 +3,9 @@ package com.easyacc.hutch.publisher;
 import com.easyacc.hutch.Hutch;
 import com.easyacc.hutch.core.HutchConsumer;
 import com.easyacc.hutch.util.HutchUtils;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.rabbitmq.client.AMQP.BasicProperties;
 import com.rabbitmq.client.AMQP.BasicProperties.Builder;
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.List;
 
@@ -40,7 +40,7 @@ public interface BodyPublisher {
    *
    * @param delayInSec 梯度延迟的时间, 单位 s
    * @param routingKey 消息的 routing-key
-   * @param msg 具体的 json 格式的消息体
+   * @param msg 具体的 text 格式的消息体
    */
   static void publishWithDelay(int delayInSec, String routingKey, String msg) {
     var delayInMs = delayInSec * 1000L;
@@ -49,11 +49,6 @@ public interface BodyPublisher {
         amqpBuilder()
             .expiration(HutchUtils.fixDealyTime(delayInMs) + "")
             .headers(Collections.singletonMap("CC", List.of(routingKey)));
-    try {
-      var body = Hutch.om().writeValueAsBytes(msg);
-      Hutch.publishWithDelay(delayInMs, props.build(), body);
-    } catch (JsonProcessingException e) {
-      Hutch.log().error("publishJson error", e);
-    }
+    Hutch.publishWithDelay(delayInMs, props.build(), msg.getBytes(StandardCharsets.UTF_8));
   }
 }
