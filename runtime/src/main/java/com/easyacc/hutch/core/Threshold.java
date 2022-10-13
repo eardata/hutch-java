@@ -45,7 +45,7 @@ public interface Threshold {
   /**
    * 自定义需要进行 batch 消息发送
    *
-   * @return 如果为 null(默认), 则不需要使用默认的, 如果有存在值则使用当前方法进行 batch publish
+   * @return 如果为 null(默认), 则不需要使用默认的 HutchConsumer.enqueue, 如果需要自定义 publish, 则编写相关的 Function
    */
   default Consumer<List<String>> batch() {
     return null;
