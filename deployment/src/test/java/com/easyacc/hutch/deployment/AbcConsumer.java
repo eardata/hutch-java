@@ -7,6 +7,7 @@ import com.easyacc.hutch.publisher.BodyPublisher;
 import java.lang.invoke.MethodHandles;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
 
 /** Created by IntelliJ IDEA. User: wyatt Date: 2022/3/15 Time: 16:46 */
 public class AbcConsumer implements HutchConsumer {
@@ -31,10 +32,12 @@ public class AbcConsumer implements HutchConsumer {
       }
 
       @Override
-      public void publish(List<String> msgs) {
-        for (var msg : msgs) {
-          BodyPublisher.publish(AbcConsumer.class, msg);
-        }
+      public Consumer<List<String>> batch() {
+        return msgs -> {
+          for (var msg : msgs) {
+            BodyPublisher.publish(AbcConsumer.class, msg);
+          }
+        };
       }
     };
   }

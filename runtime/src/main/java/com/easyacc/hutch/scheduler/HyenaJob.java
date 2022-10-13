@@ -67,9 +67,15 @@ public class HyenaJob implements Runnable {
       return;
     }
 
-    // 通过 Hutch 来 publish 出去
-    threshold().publish(tasks);
-    // TODO: 默认应该按照原来的 message body 原封不动的重新发送出去. 如果有自定义的 Publish 方法则使用他
+    // 默认应该按照原来的 message body 原封不动的重新发送出去. 如果有自定义的 Publish 方法则使用他
+    var batch = threshold().batch();
+    if (batch == null) {
+      tasks.forEach(hc::enqueue);
+      log.info("没有自定义 batch 方法, 使用默认的 HutchConsumer.enqueue");
+    } else {
+      batch.accept(tasks);
+      log.debug("使用自定义的 batch 方法, 对 {} 条消息进行批处理", tasks.size());
+    }
     // 从 redis 队列中移除 tasks
     Hutch.redis().zrem(key, tasks.toArray(String[]::new));
   }

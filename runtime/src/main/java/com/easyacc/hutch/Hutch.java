@@ -134,12 +134,9 @@ public class Hutch implements IHutch {
   public static void publishWithSchedule(Class<? extends HutchConsumer> consumer, String msg) {
     // 寻找到对应的 Consumer 实例
     var hc = HutchConsumer.get(consumer);
-
     // 使用 msg 计算出 key 作为 redis key 的 suffix
     var key = LimitPublisher.zsetKey(hc, msg);
-    Hutch.current()
-        .getRedisConnection()
-        .sync()
+    Hutch.redis()
         // 使用当前时间作为 score
         .zadd(key, Timestamp.valueOf(LocalDateTime.now()).getTime(), msg);
   }

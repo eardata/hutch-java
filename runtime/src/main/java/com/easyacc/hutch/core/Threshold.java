@@ -2,6 +2,7 @@ package com.easyacc.hutch.core;
 
 import com.easyacc.hutch.Hutch;
 import java.util.List;
+import java.util.function.Consumer;
 import lombok.SneakyThrows;
 
 /**
@@ -41,7 +42,12 @@ public interface Threshold {
     return "";
   }
 
-  /** 将 redis 中的消息 publish 出去. */
-  @Deprecated(since = "redis 缓存的是 rabbitmq 中的消息体, 不需要额外的设计 publish 方法")
-  void publish(List<String> msgs);
+  /**
+   * 自定义需要进行 batch 消息发送
+   *
+   * @return 如果为 null(默认), 则不需要使用默认的, 如果有存在值则使用当前方法进行 batch publish
+   */
+  default Consumer<List<String>> batch() {
+    return null;
+  }
 }
