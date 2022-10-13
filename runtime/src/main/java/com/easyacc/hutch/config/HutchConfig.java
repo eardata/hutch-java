@@ -64,6 +64,7 @@ public class HutchConfig {
   /** 获取全局默认的那个 Executors */
   public static ExecutorService getSharedExecutor() {
     if (sharedExecutor == null) {
+      // 这里使用 newCachedThreadPool 与 使用 VirtualThread 很类似了, 可以无止境的根据需要创建新的 Thread
       sharedExecutor = Executors.newCachedThreadPool();
     }
     return sharedExecutor;
