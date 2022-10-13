@@ -124,6 +124,7 @@ public class Hutch implements IHutch {
     var hc = HutchConsumer.get(consumer);
     // 使用 msg 计算出 key 作为 redis key 的 suffix
     var key = LimitPublisher.zsetKey(hc, msg);
+    // TODO: 如果仅仅是使用默认的 Time 作为 score, 那么着就是一个 FIFO/LIFO 的队列, 那么直接使用 LIST 算法上会更快
     Hutch.redis()
         // 使用当前时间作为 score
         .zadd(key, Timestamp.valueOf(LocalDateTime.now()).getTime(), msg);
