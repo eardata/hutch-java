@@ -45,4 +45,25 @@ public class HutchConfigTest {
     h.stop();
     assertThat(h.isStarted()).isFalse();
   }
+
+  @Test
+  void testThresoldInstance() {
+    var c = new AbcConsumer();
+    var t1 = c.threshold();
+    var t2 = c.threshold();
+    assertThat(t1).isNotEqualTo(t2);
+  }
+
+  @Test
+  void testCachedThreshold() {
+    var c = new AbcConsumer();
+    var c2 = new BbcConsumer();
+
+    var t1 = Hutch.threshold(c);
+    var t2 = Hutch.threshold(c);
+    assertThat(t1).isEqualTo(t2);
+
+    var t3 = Hutch.threshold(c2);
+    assertThat(t3).isNull();
+  }
 }

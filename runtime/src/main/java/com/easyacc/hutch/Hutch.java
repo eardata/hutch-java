@@ -3,6 +3,7 @@ package com.easyacc.hutch;
 import com.easyacc.hutch.config.HutchConfig;
 import com.easyacc.hutch.core.HutchConsumer;
 import com.easyacc.hutch.core.MessageProperties;
+import com.easyacc.hutch.core.Threshold;
 import com.easyacc.hutch.publisher.LimitPublisher;
 import com.easyacc.hutch.scheduler.HyenaJob;
 import com.easyacc.hutch.support.DefaultMessagePropertiesConverter;
@@ -64,6 +65,9 @@ public class Hutch implements IHutch {
   public static final String HUTCH_EXCHANGE = "hutch";
   public static final String HUTCH_SCHEDULE_EXCHANGE = "hutch.schedule";
   private static final MessagePropertiesConverter MPC = new DefaultMessagePropertiesConverter();
+  private static final Set<HutchConsumer> consumers = new HashSet<>();
+
+  private static final Map<HutchConsumer, Threshold> cachedThresholds = new HashMap<>();
   private static final ReentrantLock lock = new ReentrantLock();
 
   /** 用于 queue 前缀的应用名, 因为 Quarkus 的 CDI 的机制, 现在需要在 HutchConsumer 初始化之前就设置好, 例如 static {} 代码块中 */
@@ -72,7 +76,6 @@ public class Hutch implements IHutch {
   private static volatile Hutch currentHutch;
 
   @Setter private static ObjectMapper objectMapper;
-  private static Set<HutchConsumer> consumers;
 
   private final Map<String, List<SimpleConsumer>> hutchConsumers;
 
@@ -209,8 +212,7 @@ public class Hutch implements IHutch {
 
   /** Hutch 所有的 HutchConsumer 实例 */
   public static Set<HutchConsumer> consumers() {
-    if (Hutch.consumers == null) {
-      Hutch.consumers = new HashSet<>();
+    if (Hutch.consumers.isEmpty()) {
       var beans = CDI.current().getBeanManager().getBeans(HutchConsumer.class);
       for (var bean : beans) {
         var hco = HutchUtils.findHutchConsumerBean(bean.getBeanClass());
@@ -221,6 +223,22 @@ public class Hutch implements IHutch {
       }
     }
     return Hutch.consumers;
+  }
+
+  /**
+   * 对 threshold 进行 HutchConsumer 级别的缓存, 避免每次生成新的匿名类
+   *
+   * @param hc
+   * @return
+   */
+  public static Threshold threshold(HutchConsumer hc) {
+    if (cachedThresholds.containsKey(hc)) {
+      return cachedThresholds.get(hc);
+    }
+    var t = hc.threshold();
+    // 如果为 null, 也 put 进去
+    cachedThresholds.put(hc, t);
+    return cachedThresholds.get(hc);
   }
 
   public static Set<String> queues() {
@@ -358,6 +376,7 @@ public class Hutch implements IHutch {
 
   /** 初始化 Job Trigger */
   protected void initHutchConsumerTrigger(HutchConsumer hc) {
+    // TODO: 不需要每一次 threshold 的获取都去创建一个新的对象, 可以提供注册方法, 将其缓存起来. 不用 HyenaJob 每次运行都创建一个新的配置对象
     var threshold = hc.threshold();
     if (threshold == null) {
       return;
