@@ -1,5 +1,6 @@
 package com.easyacc.hutch.publisher;
 
+import com.easyacc.hutch.Hutch;
 import com.easyacc.hutch.core.HutchConsumer;
 import java.util.Objects;
 import java.util.function.Predicate;
@@ -34,7 +35,7 @@ public interface LimitPublisher {
     Objects.requireNonNull(hc, "HutchConsumer 实例不能为空");
     Objects.requireNonNull(hc.threshold(), "HutchConsumer 的 threshold 参数不能为空");
 
-    return Stream.of(hc.queue(), hc.threshold().key(msg))
+    return Stream.of(hc.queue(), Hutch.threshold(hc).key(msg))
         .filter(Objects::nonNull)
         .filter(Predicate.not(String::isBlank))
         .collect(Collectors.joining("."));

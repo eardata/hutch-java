@@ -21,14 +21,16 @@ public class HyenaJob implements Runnable {
   private Instant updatedAt = Instant.now().minusSeconds(11);
 
   private final HutchConsumer hc;
-  private final Threshold threshold;
 
   public HyenaJob(HutchConsumer hutchConsumer) {
     // 如果初始化了 HyenaJob 那么就一定需要拥有 threshold
-    Objects.requireNonNull(hutchConsumer.threshold());
+    Objects.requireNonNull(Hutch.threshold(hutchConsumer));
 
     this.hc = hutchConsumer;
-    this.threshold = hc.threshold();
+  }
+
+  public Threshold threshold() {
+    return Hutch.threshold(this.hc);
   }
 
   @Override
@@ -59,14 +61,14 @@ public class HyenaJob implements Runnable {
   }
 
   public void fetchAndPublish(String key) {
-    var tasks = Hutch.redis().zrange(key, 0, threshold.rate() - 1);
+    var tasks = Hutch.redis().zrange(key, 0, threshold().rate() - 1);
     if (tasks.isEmpty()) {
       log.debug("从 redis 中未找到任务数据! key: {}", key);
       return;
     }
 
     // 通过 Hutch 来 publish 出去
-    threshold.publish(tasks);
+    threshold().publish(tasks);
     // TODO: 默认应该按照原来的 message body 原封不动的重新发送出去. 如果有自定义的 Publish 方法则使用他
     // 从 redis 队列中移除 tasks
     Hutch.redis().zrem(key, tasks.toArray(String[]::new));
