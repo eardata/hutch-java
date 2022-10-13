@@ -66,7 +66,6 @@ public class HyenaJob implements Runnable {
     // TODO: 如果真的需要限速, 那么还需要知道 RabbitMQ 中对应的队列中拥有的队列数量. 只有当 RabbitMQ 中拥有的等待任务数量少于一定值的时候, 才能够从
     //  redis 向 rabbitmq 中推送. 不然 redis 单方面推送, 还是会让任务挤压在 RabbitMQ 当中从而失去 limit 的作用
     var tasks = Hutch.redis().zrange(key, 0, threshold().rate() - 1);
-    //    var tasks = Hutch.redis().rpop(key, threshold().rate() - 1);
     if (tasks.isEmpty()) {
       log.debug("从 redis 中未找到任务数据! key: {}", key);
       return;
