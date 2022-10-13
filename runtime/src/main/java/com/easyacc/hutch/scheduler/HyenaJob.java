@@ -11,7 +11,7 @@ import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 
-/** 提供基于 redis 主动式 hutch scheduler job */
+/** 提供基于 redis 主动式 hutch scheduler job. ScheduleExecutor 会对相同的任务进行约束, 不会并发执行 */
 @Slf4j
 public class HyenaJob implements Runnable {
 
@@ -24,11 +24,13 @@ public class HyenaJob implements Runnable {
 
   public HyenaJob(HutchConsumer hutchConsumer) {
     // 如果初始化了 HyenaJob 那么就一定需要拥有 threshold
+    Objects.requireNonNull(hutchConsumer);
     Objects.requireNonNull(Hutch.threshold(hutchConsumer));
 
     this.hc = hutchConsumer;
   }
 
+  /** 便利获取 Threshold 方法 */
   public Threshold threshold() {
     return Hutch.threshold(this.hc);
   }
