@@ -5,7 +5,6 @@ import static com.google.common.truth.Truth.assertThat;
 import com.easyacc.hutch.Hutch;
 import com.easyacc.hutch.config.HutchConfig;
 import io.quarkus.test.QuarkusUnitTest;
-import javax.enterprise.inject.spi.CDI;
 import javax.inject.Inject;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
@@ -28,19 +27,18 @@ public class HutchConfigTest {
   /** 测试 HutchConfig */
   @Test
   void testHutchConfig() {
-    var cfg = CDI.current().select(HutchConfig.class).get();
-    assertThat(cfg).isNotNull();
-    assertThat(cfg.schdulePoolSize).isEqualTo(6);
-    assertThat(cfg.enable).isFalse();
+    assertThat(config).isNotNull();
+    assertThat(config.schdulePoolSize).isEqualTo(6);
+    assertThat(config.enable).isFalse();
 
-    assertThat(cfg.name).isEqualTo("lake_web");
+    assertThat(config.name).isEqualTo("lake_web");
     assertThat(Hutch.name()).isEqualTo("lake_web");
-    var h = new Hutch(cfg).start();
+    var h = new Hutch(config).start();
     assertThat(h.isStarted()).isFalse();
 
     // 强制开启
-    cfg.enable = true;
-    h = new Hutch(cfg).start();
+    config.enable = true;
+    h = new Hutch(config).start();
     assertThat(h.isStarted()).isTrue();
     h.stop();
     assertThat(h.isStarted()).isFalse();
