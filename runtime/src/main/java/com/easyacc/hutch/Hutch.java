@@ -117,18 +117,6 @@ public class Hutch implements IHutch {
     return log;
   }
 
-  /**
-   * 使用 delayInMs (ms) 的 routing_key. ex: hutch.exchange.5s
-   *
-   * @param delayInMs 传入需要延迟的时间(ms), 自动计算到对应的 routing-key
-   */
-  public static String delayRoutingKey(long delayInMs) {
-    return String.format(
-        "%s.%ss",
-        HUTCH_SCHEDULE_EXCHANGE,
-        TimeUnit.SECONDS.convert(HutchUtils.fixDealyTime(delayInMs), TimeUnit.MILLISECONDS));
-  }
-
   /** 进行 schedule publish */
   @Deprecated(since = "走 limit")
   public static void publishWithSchedule(Class<? extends HutchConsumer> consumer, String msg) {
@@ -155,7 +143,7 @@ public class Hutch implements IHutch {
 
   /** 向延迟队列中发布消息 */
   public static void publishWithDelay(long delayInMs, BasicProperties props, byte[] body) {
-    publish(Hutch.HUTCH_SCHEDULE_EXCHANGE, Hutch.delayRoutingKey(delayInMs), props, body);
+    publish(Hutch.HUTCH_SCHEDULE_EXCHANGE, HutchUtils.delayRoutingKey(delayInMs), props, body);
   }
 
   /**
@@ -314,7 +302,8 @@ public class Hutch implements IHutch {
     for (var g : Gradient.values()) {
       try {
         this.ch.queueDeclare(g.queue(), true, false, false, delayQueueArgs);
-        this.ch.queueBind(g.queue(), HUTCH_SCHEDULE_EXCHANGE, Hutch.delayRoutingKey(g.fixdDelay()));
+        this.ch.queueBind(
+            g.queue(), HUTCH_SCHEDULE_EXCHANGE, HutchUtils.delayRoutingKey(g.fixdDelay()));
       } catch (Exception e) {
         log.error("Declare delay queue {} error", g.queue(), e);
       }

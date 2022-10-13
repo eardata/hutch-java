@@ -1,5 +1,7 @@
 package com.easyacc.hutch.util;
 
+import static com.easyacc.hutch.Hutch.HUTCH_SCHEDULE_EXCHANGE;
+
 import com.easyacc.hutch.Hutch;
 import com.easyacc.hutch.core.HutchConsumer;
 import com.google.common.base.CaseFormat;
@@ -13,6 +15,18 @@ public class HutchUtils {
   /** 为 Queue 添加统一的 App 前缀 */
   public static String prefixQueue(String queue) {
     return String.format("%s_%s", Hutch.name(), queue);
+  }
+
+  /**
+   * 使用 delayInMs (ms) 的 routing_key. ex: hutch.exchange.5s
+   *
+   * @param delayInMs 传入需要延迟的时间(ms), 自动计算到对应的 routing-key
+   */
+  public static String delayRoutingKey(long delayInMs) {
+    return String.format(
+        "%s.%ss",
+        HUTCH_SCHEDULE_EXCHANGE,
+        TimeUnit.SECONDS.convert(HutchUtils.fixDealyTime(delayInMs), TimeUnit.MILLISECONDS));
   }
 
   /** 根据 queue 从 ioc 容器中寻找已经通过 DI 处理好依赖的 HutchConsumer 实例 */

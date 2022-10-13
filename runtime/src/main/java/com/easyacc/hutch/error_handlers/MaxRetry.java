@@ -5,6 +5,7 @@ import com.easyacc.hutch.core.ErrorHandler;
 import com.easyacc.hutch.core.HutchConsumer;
 import com.easyacc.hutch.core.Message;
 import com.easyacc.hutch.core.MessageProperties;
+import com.easyacc.hutch.util.HutchUtils;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 
@@ -48,7 +49,7 @@ public class MaxRetry implements ErrorHandler {
       log.debug(
           "publish with delay {} using routing_key {} and origin routing_key: {}",
           basicProps.getExpiration(),
-          Hutch.delayRoutingKey(delayInMs),
+          HutchUtils.delayRoutingKey(delayInMs),
           rk);
     } else {
       log.info(
