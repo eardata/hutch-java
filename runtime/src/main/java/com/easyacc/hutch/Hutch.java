@@ -4,7 +4,6 @@ import com.easyacc.hutch.config.HutchConfig;
 import com.easyacc.hutch.core.HutchConsumer;
 import com.easyacc.hutch.core.MessageProperties;
 import com.easyacc.hutch.core.Threshold;
-import com.easyacc.hutch.publisher.LimitPublisher;
 import com.easyacc.hutch.scheduler.HyenaJob;
 import com.easyacc.hutch.support.DefaultMessagePropertiesConverter;
 import com.easyacc.hutch.support.MessagePropertiesConverter;
@@ -24,8 +23,6 @@ import io.lettuce.core.api.StatefulRedisConnection;
 import io.lettuce.core.api.sync.RedisCommands;
 import io.quarkus.runtime.LaunchMode;
 import java.io.IOException;
-import java.sql.Timestamp;
-import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
@@ -115,19 +112,6 @@ public class Hutch implements IHutch {
 
   public static Logger log() {
     return log;
-  }
-
-  /** 进行 schedule publish */
-  @Deprecated(since = "走 limit")
-  public static void publishWithSchedule(Class<? extends HutchConsumer> consumer, String msg) {
-    // 寻找到对应的 Consumer 实例
-    var hc = HutchConsumer.get(consumer);
-    // 使用 msg 计算出 key 作为 redis key 的 suffix
-    var key = LimitPublisher.zsetKey(hc, msg);
-    // TODO: 如果仅仅是使用默认的 Time 作为 score, 那么着就是一个 FIFO/LIFO 的队列, 那么直接使用 LIST 算法上会更快
-    Hutch.redis()
-        // 使用当前时间作为 score
-        .zadd(key, Timestamp.valueOf(LocalDateTime.now()).getTime(), msg);
   }
 
   // ----------------- default publish ------------------

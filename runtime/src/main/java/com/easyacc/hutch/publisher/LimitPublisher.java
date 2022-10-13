@@ -2,10 +2,13 @@ package com.easyacc.hutch.publisher;
 
 import com.easyacc.hutch.Hutch;
 import com.easyacc.hutch.core.HutchConsumer;
+import java.sql.Timestamp;
+import java.time.LocalDateTime;
 import java.util.Objects;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import lombok.SneakyThrows;
 
 /**
  * 将 Hutch 需要对三方 api 进行 ratelimite 的操作独立出来, 不与标准的 Hutch.publish 共用.
@@ -20,8 +23,23 @@ import java.util.stream.Stream;
 public interface LimitPublisher {
 
   /** 利用 HutchConsumer 将 Object 转为 json 发送消息 */
+  @SneakyThrows
   static void publish(Class<? extends HutchConsumer> consumer, Object msg) {
-    // TODO
+    var json = Hutch.om().writeValueAsString(msg);
+    publish(consumer, json);
+  }
+
+  /** 利用 HutchConsumer 限制发送 msg 消息 */
+  static void publish(Class<? extends HutchConsumer> consumer, String msg) {
+    // 寻找到对应的 Consumer 实例
+    var hc = HutchConsumer.get(consumer);
+    // 使用 msg 计算出 key 作为 redis key 的 suffix
+    var key = LimitPublisher.zsetKey(hc, msg);
+    // TODO: 如果仅仅是使用默认的 Time 作为 score, 那么着就是一个 FIFO/LIFO 的队列, 那么直接使用 LIST 算法上会更快
+    Hutch.redis()
+        //    .lpush(key, msg);
+        //         使用当前时间作为 score
+        .zadd(key, (double) Timestamp.valueOf(LocalDateTime.now()).getTime(), msg);
   }
 
   /**

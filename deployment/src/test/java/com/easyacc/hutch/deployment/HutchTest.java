@@ -8,6 +8,7 @@ import com.easyacc.hutch.core.HutchConsumer;
 import com.easyacc.hutch.error_handlers.NoDelayMaxRetry;
 import com.easyacc.hutch.publisher.BodyPublisher;
 import com.easyacc.hutch.publisher.JsonPublisher;
+import com.easyacc.hutch.publisher.LimitPublisher;
 import io.quarkus.test.QuarkusUnitTest;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
@@ -101,6 +102,7 @@ class HutchTest {
     TimeUnit.SECONDS.sleep(6);
     assertThat(BbcConsumer.Timers.get()).isEqualTo(2);
     h.stop();
+    assertThat(h.isStarted()).isFalse();
   }
 
   @Test
@@ -117,6 +119,7 @@ class HutchTest {
     TimeUnit.SECONDS.sleep(6);
     assertThat(AbcConsumer.Timers.get()).isEqualTo(a + 1);
     h.stop();
+    assertThat(h.isStarted()).isFalse();
   }
 
   @Test
@@ -126,7 +129,7 @@ class HutchTest {
 
     var h = CDI.current().select(Hutch.class).get();
     h.start();
-    Hutch.publishWithSchedule(AbcConsumer.class, "ccc");
+    LimitPublisher.publish(AbcConsumer.class, "ccc");
 
     var a = AbcConsumer.Timers.get();
     assertThat(AbcConsumer.Timers.get()).isEqualTo(a);
@@ -134,5 +137,6 @@ class HutchTest {
     TimeUnit.SECONDS.sleep(2);
     assertThat(AbcConsumer.Timers.get()).isEqualTo(a + 1);
     h.stop();
+    assertThat(h.isStarted()).isFalse();
   }
 }
