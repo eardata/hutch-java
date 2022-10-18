@@ -352,7 +352,7 @@ public class Hutch implements IHutch {
       return;
     }
     scheduledExecutor.scheduleAtFixedRate(
-        new HyenaJob(hc), 1000, threshold.interval(), TimeUnit.SECONDS);
+        new HyenaJob(hc), 0, threshold.interval(), TimeUnit.SECONDS);
   }
 
   /** 初始化 Redis Connection */
