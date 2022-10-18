@@ -1,3 +1,17 @@
+v2.0.0
+* 因为 publish 的消息变多, 为了便于代码维护与清晰使用. 使用独立三个 Publisher
+  * BodyPushlisher 负责字符串与二进制传递给 MQ
+  * JsonPushlisher 负将对象转化为 JSON 格式传递给 MQ
+  * LimitPublisher 负责需要进行主动 Ratelimit 的消息以 JSON 格式发送给 Redis 缓存, 再根据主动频率提交给 MQ
+* 修复 Hutch 所管理的 ScheduleExecutor 的实例启停的问题
+* 调整 Threshold 接口, 修改 publish 接口为 batch 接口, 返回需要的 `Consumer<List<String>>` 可进行 bathc 消息处理
+
+v1.4.0
+* 将主动限流需要的 schedule 使用 SchdeudleExecutor 代替额外的三方 Quartz 库
+
+v1.3.2
+* 增加支持 Threshold 接口, 并且需要依赖 Redis 做主动限流的机制. 用于解决三方 api 的调用限速问题
+
 v1.3.0
 * 增加基于 redis 的 schedule publish 支持
 
