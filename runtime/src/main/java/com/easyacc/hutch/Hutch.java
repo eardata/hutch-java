@@ -347,13 +347,12 @@ public class Hutch implements IHutch {
 
   /** 初始化 Job Trigger */
   protected void initHutchConsumerTrigger(HutchConsumer hc) {
-    // TODO: 不需要每一次 threshold 的获取都去创建一个新的对象, 可以提供注册方法, 将其缓存起来. 不用 HyenaJob 每次运行都创建一个新的配置对象
     var threshold = threshold(hc);
     if (threshold == null) {
       return;
     }
     scheduledExecutor.scheduleAtFixedRate(
-        new HyenaJob(hc), 0, threshold.interval(), TimeUnit.SECONDS);
+        new HyenaJob(hc), 1000, threshold.interval(), TimeUnit.SECONDS);
   }
 
   /** 初始化 Redis Connection */
