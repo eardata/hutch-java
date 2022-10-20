@@ -23,18 +23,18 @@ public interface JsonPublisher {
     publish(HutchConsumer.rk(consumer), msg);
   }
 
-  /** 指定 routing-key 将 msg 发送消息 */
-  static void publish(String routingKey, String msg) {
-    Hutch.publish(routingKey, amqpBuilder().build(), msg.getBytes(StandardCharsets.UTF_8));
-  }
-
   /** 指定 routing-key 将 Object 转为 json 发送消息 */
   static void publish(String routingKey, Object msg) {
     byte[] body = new byte[0];
-    try {
-      body = Hutch.om().writeValueAsBytes(msg);
-    } catch (JsonProcessingException e) {
-      Hutch.log().error("JsonPublisher.publish error", e);
+    // 如果已经是 String 直接发送就可以
+    if (msg instanceof String smsg) {
+      body = smsg.getBytes(StandardCharsets.UTF_8);
+    } else {
+      try {
+        body = Hutch.om().writeValueAsBytes(msg);
+      } catch (JsonProcessingException e) {
+        Hutch.log().error("JsonPublisher.publish error", e);
+      }
     }
     Hutch.publish(routingKey, amqpBuilder().build(), body);
   }
