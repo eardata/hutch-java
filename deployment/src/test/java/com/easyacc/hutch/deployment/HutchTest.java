@@ -6,6 +6,9 @@ import com.easyacc.hutch.Hutch;
 import com.easyacc.hutch.config.HutchConfig;
 import com.easyacc.hutch.core.HutchConsumer;
 import com.easyacc.hutch.error_handlers.NoDelayMaxRetry;
+import com.easyacc.hutch.publisher.BodyPublisher;
+import com.easyacc.hutch.publisher.JsonPublisher;
+import com.easyacc.hutch.publisher.LimitPublisher;
 import io.quarkus.test.QuarkusUnitTest;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
@@ -55,19 +58,6 @@ class HutchTest {
   }
 
   @Test
-  void testHutchConfig() throws InterruptedException, IOException {
-    var cfg = CDI.current().select(HutchConfig.class).get();
-    assertThat(cfg).isNotNull();
-
-    assertThat(cfg.name).isEqualTo("lake_web");
-    assertThat(Hutch.name()).isEqualTo("lake_web");
-    var h = new Hutch(cfg).start();
-    assertThat(h.isStarted()).isTrue();
-    h.stop();
-    assertThat(h.isStarted()).isFalse();
-  }
-
-  @Test
   void testEnqueue() throws IOException, InterruptedException {
     //    var h = CDI.current().select(Hutch.class).get();
     var h = new Hutch(config);
@@ -80,7 +70,7 @@ class HutchTest {
     var q = h.getCh().queueDeclarePassive(abcConsumer.queue());
 
     abcConsumer.enqueue("abc");
-    Hutch.publish(AbcConsumer.class, "ccc");
+    BodyPublisher.publish(AbcConsumer.class, "ccc");
 
     Thread.sleep(100);
     q = h.getCh().queueDeclarePassive(abcConsumer.queue());
@@ -108,10 +98,11 @@ class HutchTest {
     assertThat(h.isStarted()).isFalse();
     h.start();
     assertThat(h).isEqualTo(Hutch.current());
-    Hutch.publish(BbcConsumer.class, "bbc");
+    BodyPublisher.publish(BbcConsumer.class, "bbc");
     TimeUnit.SECONDS.sleep(6);
     assertThat(BbcConsumer.Timers.get()).isEqualTo(2);
     h.stop();
+    assertThat(h.isStarted()).isFalse();
   }
 
   @Test
@@ -120,7 +111,7 @@ class HutchTest {
     HutchConfig.getErrorHandlers().add(new NoDelayMaxRetry());
     var h = CDI.current().select(Hutch.class).get();
     h.start();
-    Hutch.publishJsonWithDelay(1000, AbcConsumer.class, "ccc");
+    JsonPublisher.publishWithDelay(1, AbcConsumer.class, "ccc");
     var a = AbcConsumer.Timers.get();
     // 等待在 5s 以内
     TimeUnit.SECONDS.sleep(2);
@@ -128,6 +119,7 @@ class HutchTest {
     TimeUnit.SECONDS.sleep(6);
     assertThat(AbcConsumer.Timers.get()).isEqualTo(a + 1);
     h.stop();
+    assertThat(h.isStarted()).isFalse();
   }
 
   @Test
@@ -137,7 +129,7 @@ class HutchTest {
 
     var h = CDI.current().select(Hutch.class).get();
     h.start();
-    Hutch.publishWithSchedule(AbcConsumer.class, "ccc");
+    LimitPublisher.publish(AbcConsumer.class, "ccc");
 
     var a = AbcConsumer.Timers.get();
     assertThat(AbcConsumer.Timers.get()).isEqualTo(a);
@@ -145,5 +137,6 @@ class HutchTest {
     TimeUnit.SECONDS.sleep(2);
     assertThat(AbcConsumer.Timers.get()).isEqualTo(a + 1);
     h.stop();
+    assertThat(h.isStarted()).isFalse();
   }
 }

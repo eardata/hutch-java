@@ -1,6 +1,7 @@
 package com.easyacc.hutch.core;
 
 import com.easyacc.hutch.Hutch;
+import com.easyacc.hutch.publisher.JsonPublisher;
 import com.easyacc.hutch.util.HutchUtils;
 import java.util.Map;
 
@@ -21,10 +22,7 @@ import java.util.Map;
 public interface HutchConsumer {
   /** 静态方法提供通过 class 寻找 HutchConsumer 实例 */
   static HutchConsumer get(Class<? extends HutchConsumer> clazz) {
-    return Hutch.consumers().stream()
-        .filter(clazz::isInstance)
-        .findFirst()
-        .orElse(null);
+    return Hutch.consumers().stream().filter(clazz::isInstance).findFirst().orElse(null);
   }
 
   /** 静态方法提供 routing key 计算支持 */
@@ -75,12 +73,12 @@ public interface HutchConsumer {
 
   /** 根据当前的 routing key, 发送一个消息 */
   default <T> void enqueue(T t) {
-    Hutch.publishJson(this.routingKey(), t);
+    JsonPublisher.publish(this.routingKey(), t);
   }
 
   /** 根据当前 routing key 以及设置的延迟, 计算固定梯度延迟, 发送一个消息 */
   default <T> void enqueueIn(long delayInMs, T t) {
-    Hutch.publishJsonWithDelay(delayInMs, this.routingKey(), t);
+    JsonPublisher.publishWithDelay(Long.valueOf(delayInMs / 1000).intValue(), this.routingKey(), t);
   }
 
   /** 具体处理消息, 可抛出异常自定义异常触发 ErrorHandler 处理 */

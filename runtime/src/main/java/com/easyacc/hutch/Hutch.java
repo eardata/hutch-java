@@ -2,8 +2,8 @@ package com.easyacc.hutch;
 
 import com.easyacc.hutch.config.HutchConfig;
 import com.easyacc.hutch.core.HutchConsumer;
-import com.easyacc.hutch.core.Message;
 import com.easyacc.hutch.core.MessageProperties;
+import com.easyacc.hutch.core.Threshold;
 import com.easyacc.hutch.scheduler.HyenaJob;
 import com.easyacc.hutch.support.DefaultMessagePropertiesConverter;
 import com.easyacc.hutch.support.MessagePropertiesConverter;
@@ -12,34 +12,28 @@ import com.easyacc.hutch.util.HutchUtils.Gradient;
 import com.easyacc.hutch.util.RabbitUtils;
 import com.easyacc.hutch.util.RedisUtils;
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
+import com.google.common.base.Strings;
 import com.rabbitmq.client.AMQP.BasicProperties;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
-import io.lettuce.core.ClientOptions;
 import io.lettuce.core.RedisClient;
 import io.lettuce.core.api.StatefulRedisConnection;
-import io.lettuce.core.protocol.ProtocolVersion;
+import io.lettuce.core.api.sync.RedisCommands;
 import io.quarkus.runtime.LaunchMode;
 import java.io.IOException;
-import java.sql.Timestamp;
-import java.time.LocalDateTime;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Predicate;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import javax.enterprise.inject.spi.CDI;
 import lombok.Getter;
 import lombok.Setter;
@@ -68,7 +62,10 @@ public class Hutch implements IHutch {
   public static final String HUTCH_EXCHANGE = "hutch";
   public static final String HUTCH_SCHEDULE_EXCHANGE = "hutch.schedule";
   private static final MessagePropertiesConverter MPC = new DefaultMessagePropertiesConverter();
-  private static final ScheduledExecutorService ES = Executors.newScheduledThreadPool(30);
+  private static final Set<HutchConsumer> consumers = new HashSet<>();
+
+  private static final Map<HutchConsumer, Threshold> cachedThresholds = new HashMap<>();
+  private static final ReentrantLock lock = new ReentrantLock();
 
   /** 用于 queue 前缀的应用名, 因为 Quarkus 的 CDI 的机制, 现在需要在 HutchConsumer 初始化之前就设置好, 例如 static {} 代码块中 */
   public static String APP_NAME = "hutch";
@@ -76,9 +73,11 @@ public class Hutch implements IHutch {
   private static volatile Hutch currentHutch;
 
   @Setter private static ObjectMapper objectMapper;
-  private static Set<HutchConsumer> consumers;
 
   private final Map<String, List<SimpleConsumer>> hutchConsumers;
+
+  /** 定时任务的 ExecutorService */
+  private ScheduledExecutorService scheduledExecutor;
 
   @Getter private final HutchConfig config;
 
@@ -107,28 +106,15 @@ public class Hutch implements IHutch {
     return currentHutch;
   }
 
+  public static RedisCommands<String, String> redis() {
+    return current().redisConnection.sync();
+  }
+
   public static Logger log() {
     return log;
   }
 
-  /** 使用 fixedDelay (ms) 的 routing_key. ex: hutch.exchange.5s */
-  public static String delayRoutingKey(long fixedDelay) {
-    return String.format(
-        "%s.%ss",
-        HUTCH_SCHEDULE_EXCHANGE, TimeUnit.SECONDS.convert(fixedDelay, TimeUnit.MILLISECONDS));
-  }
-
-  /** 发送字符串 - HutchConsumer */
-  public static void publish(Class<? extends HutchConsumer> consumer, String msg) {
-    publish(HutchConsumer.rk(consumer), msg);
-  }
-
-  /** 发送字符串 */
-  public static void publish(String routingKey, String msg) {
-    var props = new BasicProperties().builder().contentType("text/plain").contentEncoding("UTF-8");
-    publish(routingKey, props.build(), msg.getBytes());
-  }
-
+  // ----------------- default publish ------------------
   /** 最原始的发送 bytes - HutchConsumer */
   public static void publish(
       Class<? extends HutchConsumer> consumer, BasicProperties props, byte[] body) {
@@ -140,6 +126,19 @@ public class Hutch implements IHutch {
     publish(Hutch.HUTCH_EXCHANGE, routingKey, props, body);
   }
 
+  /** 向延迟队列中发布消息 */
+  public static void publishWithDelay(long delayInMs, BasicProperties props, byte[] body) {
+    publish(Hutch.HUTCH_SCHEDULE_EXCHANGE, HutchUtils.delayRoutingKey(delayInMs), props, body);
+  }
+
+  /**
+   * 最核心的 publish 方法
+   *
+   * @param exchange 指定 exchange
+   * @param routingKey 指定 routingKey
+   * @param props 指定消息的 props
+   * @param body 指定二进制的 body
+   */
   public static void publish(
       String exchange, String routingKey, BasicProperties props, byte[] body) {
     if (current() == null) {
@@ -160,117 +159,7 @@ public class Hutch implements IHutch {
       }
     }
   }
-
-  /** 直接当做 JSON 发送 - HutchConsumer */
-  public static void publishJson(Class<? extends HutchConsumer> consumer, Object msg) {
-    publishJson(HutchConsumer.rk(consumer), msg);
-  }
-
-  /** 直接当做 JSON 发送 */
-  public static void publishJson(String routingKey, Object msg) {
-    var props =
-        new BasicProperties().builder().contentType("application/json").contentEncoding("UTF-8");
-    byte[] body = new byte[0];
-    try {
-      body = om().writeValueAsBytes(msg);
-    } catch (JsonProcessingException e) {
-      Hutch.log().error("publishJson error", e);
-    }
-    publish(routingKey, props.build(), body);
-  }
-
-  /** 向 routing-key 对应的队列发送一个延迟消息 - HutchConsumer */
-  public static void publishJsonWithDelay(
-      long delayInMs, Class<? extends HutchConsumer> consumer, Object msg) {
-    publishJsonWithDelay(delayInMs, HutchConsumer.rk(consumer), msg);
-  }
-
-  /**
-   * 向 routing-key 对应的队列发送一个延迟消息
-   *
-   * @param delayInMs 梯度延迟的时间, 单位 ms
-   * @param routingKey 消息的 routing-key
-   * @param msg 具体的 json 格式的消息体
-   */
-  public static void publishJsonWithDelay(long delayInMs, String routingKey, Object msg) {
-    var props =
-        new BasicProperties()
-            .builder()
-            .contentType("application/json")
-            .expiration(HutchUtils.fixDealyTime(delayInMs) + "")
-            .headers(Collections.singletonMap("CC", List.of(routingKey)))
-            .contentEncoding("UTF-8");
-    byte[] body;
-    try {
-      body = om().writeValueAsBytes(msg);
-      internalPublishWithDelay(delayInMs, props.build(), body);
-    } catch (JsonProcessingException e) {
-      Hutch.log().error("publishJson error", e);
-    }
-  }
-
-  /** 直接使用 JSON 进行 schedule publish */
-  public static void publishJsonWithSchedule(Class<? extends HutchConsumer> consumer, Object msg) {
-    try {
-      publishWithSchedule(consumer, om().writeValueAsString(msg));
-    } catch (JsonProcessingException e) {
-      Hutch.log().error("publishJson error", e);
-    }
-  }
-
-  /** 进行 schedule publish */
-  public static void publishWithSchedule(Class<? extends HutchConsumer> consumer, String msg) {
-    // 寻找到对应的 Consumer 实例
-    var hc = HutchConsumer.get(consumer);
-    if (hc == null) {
-      throw new IllegalStateException("未找到 HutchConsumer 实例!" + consumer);
-    }
-
-    var threshold = hc.threshold();
-    if (threshold == null) {
-      throw new IllegalStateException("未找到 threshold 参数!" + hc.getClass());
-    }
-
-    // 使用 msg 计算出 key 作为 redis key 的 suffix
-    var key =
-        Stream.of(hc.queue(), threshold.key(msg))
-            .filter(Objects::nonNull)
-            .filter(Predicate.not(String::isBlank))
-            .collect(Collectors.joining("."));
-    Hutch.current()
-        .getRedisConnection()
-        .sync()
-        // 使用当前时间作为 score
-        .zadd(key, Timestamp.valueOf(LocalDateTime.now()).getTime(), msg);
-  }
-
-  /**
-   * 发送 Delay 的 Message
-   *
-   * @param routingKey 具体的路由的 routingKey
-   * @param delayInMs 延迟的时间, 单位 ms
-   * @param msg 具体的 Message 消息
-   */
-  public static void publishMessageWithDelay(long delayInMs, String routingKey, Message msg) {
-    Hutch.internalPublishWithDelay(
-        delayInMs,
-        convertToDelayProps(routingKey, msg.getMessageProperties(), delayInMs),
-        msg.getBody());
-
-    var fixDelay = HutchUtils.fixDealyTime(delayInMs);
-    Hutch.log()
-        .debug(
-            "publish with delay {} using routing_key {} and origin routing_key: {}",
-            fixDelay,
-            Hutch.delayRoutingKey(fixDelay),
-            routingKey);
-  }
-
-  /** 向延迟队列中发布消息 */
-  static void internalPublishWithDelay(long delayInMs, BasicProperties props, byte[] body) {
-    var fixDelay = HutchUtils.fixDealyTime(delayInMs);
-    publish(Hutch.HUTCH_SCHEDULE_EXCHANGE, Hutch.delayRoutingKey(fixDelay), props, body);
-  }
+  // ----------------
 
   /** 处理 Delay Message 需要处理的 header 信息等等, 保留原来消息中的 props header 等信息 */
   public static BasicProperties convertToDelayProps(
@@ -293,8 +182,7 @@ public class Hutch implements IHutch {
 
   /** Hutch 所有的 HutchConsumer 实例 */
   public static Set<HutchConsumer> consumers() {
-    if (Hutch.consumers == null) {
-      Hutch.consumers = new HashSet<>();
+    if (Hutch.consumers.isEmpty()) {
       var beans = CDI.current().getBeanManager().getBeans(HutchConsumer.class);
       for (var bean : beans) {
         var hco = HutchUtils.findHutchConsumerBean(bean.getBeanClass());
@@ -305,6 +193,22 @@ public class Hutch implements IHutch {
       }
     }
     return Hutch.consumers;
+  }
+
+  /**
+   * 对 threshold 进行 HutchConsumer 级别的缓存, 避免每次生成新的匿名类
+   *
+   * @param hc
+   * @return
+   */
+  public static Threshold threshold(HutchConsumer hc) {
+    if (cachedThresholds.containsKey(hc)) {
+      return cachedThresholds.get(hc);
+    }
+    var t = hc.threshold();
+    // 如果为 null, 也 put 进去
+    cachedThresholds.put(hc, t);
+    return cachedThresholds.get(hc);
   }
 
   public static Set<String> queues() {
@@ -319,24 +223,32 @@ public class Hutch implements IHutch {
 
   /** 启动 Hutch 实例, 并且每次启动成功都将重置 currentHutch */
   @Override
-  public synchronized Hutch start() {
+  public Hutch start() {
+    if (!this.config.enable) {
+      log.info("Hutch is disabled by config property and will not be started");
+      return this;
+    }
+
     if (this.isStarted) {
       return this;
     }
+
     try {
+      lock.lock();
+      initScheduleExecutor();
+
       connect();
       declareExchanges();
       declareScheduleQueues();
       declareHutchConsumerQueues();
     } finally {
       currentHutch = this;
-
       // 确保 currentHutch 不为 null
       initRedisClient();
       initHutchConsumerTriggers();
       this.isStarted = true;
+      lock.unlock();
     }
-
     return this;
   }
 
@@ -375,13 +287,15 @@ public class Hutch implements IHutch {
     for (var g : Gradient.values()) {
       try {
         this.ch.queueDeclare(g.queue(), true, false, false, delayQueueArgs);
-        this.ch.queueBind(g.queue(), HUTCH_SCHEDULE_EXCHANGE, Hutch.delayRoutingKey(g.fixdDelay()));
+        this.ch.queueBind(
+            g.queue(), HUTCH_SCHEDULE_EXCHANGE, HutchUtils.delayRoutingKey(g.fixdDelay()));
       } catch (Exception e) {
         log.error("Declare delay queue {} error", g.queue(), e);
       }
     }
   }
 
+  /** 启动 Hutch 所有注册的 Consumer */
   protected void declareHutchConsumerQueues() {
     var queues = Hutch.queues();
     log.info(
@@ -409,6 +323,11 @@ public class Hutch implements IHutch {
     }
   }
 
+  /** 每个实例拥有一个自己的 ScheduleExecutor. 并且 shutdown 之后, 需要重新构建一个 */
+  protected void initScheduleExecutor() {
+    this.scheduledExecutor = Executors.newScheduledThreadPool(this.config.schdulePoolSize);
+  }
+
   protected void initHutchConsumer(HutchConsumer hc) {
     // Ref: https://github.com/rabbitmq/rabbitmq-perf-test/issues/93
     // 所有的队列保持一个 connection, 实际使用, 队列会非常多, 数量很容易增加到 30 个以上
@@ -428,20 +347,21 @@ public class Hutch implements IHutch {
 
   /** 初始化 Job Trigger */
   protected void initHutchConsumerTrigger(HutchConsumer hc) {
-    var threshold = hc.threshold();
-    if (threshold != null) {
-      ES.scheduleAtFixedRate(new HyenaJob(hc), 0, threshold.interval(), TimeUnit.SECONDS);
+    var threshold = threshold(hc);
+    if (threshold == null) {
+      return;
     }
+    scheduledExecutor.scheduleAtFixedRate(
+        new HyenaJob(hc), 0, threshold.interval(), TimeUnit.SECONDS);
   }
 
   /** 初始化 Redis Connection */
   protected void initRedisClient() {
-    if (this.config.redisUrl != null) {
-      // see: https://github.com/lettuce-io/lettuce-core/issues/1543
-      var redis = RedisClient.create(this.config.redisUrl);
-      redis.setOptions(ClientOptions.builder().protocolVersion(ProtocolVersion.RESP2).build());
-      this.redisConnection = redis.connect();
+    if (Strings.isNullOrEmpty(this.config.redisUrl)) {
+      return;
     }
+    this.redisConnection = RedisClient.create(this.config.redisUrl).connect();
+    log.debug("初始化 redis 连接: {}", this.config.redisUrl);
   }
 
   /**
@@ -455,9 +375,10 @@ public class Hutch implements IHutch {
    * </ul>
    */
   @Override
-  public synchronized void stop() {
-    log.info("Stop Hutch");
+  public void stop() {
     try {
+      lock.lock();
+      log.info("Stop Hutch");
       if (this.isStarted) {
         for (var q : this.hutchConsumers.keySet()) {
           this.hutchConsumers.get(q).forEach(SimpleConsumer::close);
@@ -465,13 +386,13 @@ public class Hutch implements IHutch {
         this.hutchConsumers.clear();
       }
     } finally {
-      ES.shutdown();
+      scheduledExecutor.shutdownNow();
       RedisUtils.close(this.redisConnection);
-
       RabbitUtils.closeChannel(this.ch);
       RabbitUtils.closeConnection(this.conn);
       RabbitUtils.closeConnection(this.connForConsumer);
       this.isStarted = false;
+      lock.unlock();
     }
   }
 
