@@ -6,6 +6,7 @@ import com.easyacc.hutch.util.HutchUtils;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.rabbitmq.client.AMQP.BasicProperties;
 import com.rabbitmq.client.AMQP.BasicProperties.Builder;
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.List;
 
@@ -20,6 +21,11 @@ public interface JsonPublisher {
   /** 利用 HutchConsumer 将 Object 转为 json 发送消息 */
   static void publish(Class<? extends HutchConsumer> consumer, Object msg) {
     publish(HutchConsumer.rk(consumer), msg);
+  }
+
+  /** 指定 routing-key 将 msg 发送消息 */
+  static void publish(String routingKey, String msg) {
+    Hutch.publish(routingKey, amqpBuilder().build(), msg.getBytes(StandardCharsets.UTF_8));
   }
 
   /** 指定 routing-key 将 Object 转为 json 发送消息 */
