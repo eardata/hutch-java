@@ -18,8 +18,10 @@ import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.rabbitmq.client.AMQP.BasicProperties;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
+import io.lettuce.core.ClientOptions;
 import io.lettuce.core.RedisClient;
 import io.lettuce.core.api.StatefulRedisConnection;
+import io.lettuce.core.protocol.ProtocolVersion;
 import io.quarkus.runtime.LaunchMode;
 import java.io.IOException;
 import java.sql.Timestamp;
@@ -435,7 +437,10 @@ public class Hutch implements IHutch {
   /** 初始化 Redis Connection */
   protected void initRedisClient() {
     if (this.config.redisUrl != null) {
-      this.redisConnection = RedisClient.create(this.config.redisUrl).connect();
+      // see: https://github.com/lettuce-io/lettuce-core/issues/1543
+      var redis = RedisClient.create(this.config.redisUrl);
+      redis.setOptions(ClientOptions.builder().protocolVersion(ProtocolVersion.RESP2).build());
+      this.redisConnection = redis.connect();
     }
   }
 
