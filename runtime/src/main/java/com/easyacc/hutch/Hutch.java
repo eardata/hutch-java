@@ -386,7 +386,9 @@ public class Hutch implements IHutch {
         this.hutchConsumers.clear();
       }
     } finally {
-      scheduledExecutor.shutdownNow();
+      if (scheduledExecutor != null) {
+        scheduledExecutor.shutdownNow();
+      }
       RedisUtils.close(this.redisConnection);
       RabbitUtils.closeChannel(this.ch);
       RabbitUtils.closeConnection(this.conn);
