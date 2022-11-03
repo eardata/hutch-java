@@ -105,31 +105,23 @@ public class Message implements Serializable {
     return buffer.toString();
   }
 
+  /**
+   * 调整与原来不同的方式, 如果调用 getBodyContentAsString 那么则强制为返回尝试获取 header 头返回 String. 如果 是二进制, 则直接调用原生的
+   * getBody
+   *
+   * @return
+   */
   public String getBodyContentAsString() {
     if (this.body == null) {
       return null;
     }
     try {
       boolean nullProps = this.messageProperties == null;
-      String contentType = nullProps ? null : this.messageProperties.getContentType();
-      // TODO: 放弃支持 java 序列化的类
-      //      if (MessageProperties.CONTENT_TYPE_SERIALIZED_OBJECT.equals(contentType)) {
-      //        return SerializationUtils.deserialize(new ByteArrayInputStream(this.body),
-      // ALLOWED_LIST_PATTERNS,
-      //            ClassUtils.getDefaultClassLoader()).toString();
-      //      }
-      String encoding = encoding(nullProps);
-      if (MessageProperties.CONTENT_TYPE_TEXT_PLAIN.equals(contentType)
-          || MessageProperties.CONTENT_TYPE_JSON.equals(contentType)
-          || MessageProperties.CONTENT_TYPE_JSON_ALT.equals(contentType)
-          || MessageProperties.CONTENT_TYPE_XML.equals(contentType)) {
-        return new String(this.body, encoding);
-      }
+      return new String(this.body, encoding(nullProps));
     } catch (Exception e) {
-      // ignore
+      // Comes out as '[B@....b' (so harmless)
+      return Arrays.toString(this.body) + "(byte[" + this.body.length + "])"; // NOSONAR
     }
-    // Comes out as '[B@....b' (so harmless)
-    return this.body.toString() + "(byte[" + this.body.length + "])"; // NOSONAR
   }
 
   @SneakyThrows
