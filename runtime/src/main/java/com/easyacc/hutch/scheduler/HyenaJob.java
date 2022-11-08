@@ -75,7 +75,7 @@ public class HyenaJob implements Runnable {
     var batch = threshold().batch();
     if (batch == null) {
       tasks.forEach(hc::enqueue);
-      log.info("没有自定义 batch 方法, 使用默认的 HutchConsumer.enqueue");
+      log.debug("没有自定义 batch 方法, 使用默认的 HutchConsumer.enqueue");
     } else {
       batch.accept(tasks);
       log.debug("使用自定义的 batch 方法, 对 {} 条消息进行批处理", tasks.size());

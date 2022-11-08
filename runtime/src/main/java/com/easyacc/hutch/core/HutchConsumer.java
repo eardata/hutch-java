@@ -99,7 +99,12 @@ public interface HutchConsumer {
   /** 具体处理消息, 可抛出异常自定义异常触发 ErrorHandler 处理 */
   void onMessage(Message message) throws Exception;
 
-  /** 获取 ConsumeContext 的便捷方法. 整个执行过程中的日志, 可以通过此方法进行输出, 便于追踪问题 */
+  /**
+   * 获取 ConsumeContext 的便捷方法. 整个执行过程中的日志, 可以通过此方法进行输出, 便于追踪问题 注意不能在 threshold 中使用, 因为 threshold
+   * 的执行不在常规的 SimpleConsumer 中, 而是在另外的地方, 如果支持 api 在其中调用, 那么其 tid 也会不同
+   *
+   * @return ConsumeContext
+   */
   default ConsumeContext cc() {
     var ctx = Hutch.getContext();
     Objects.requireNonNull(ctx, "Consumer is not running, ConsumeContext is not exist!");
