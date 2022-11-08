@@ -12,6 +12,7 @@ import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.DefaultConsumer;
 import com.rabbitmq.client.Envelope;
 import java.io.IOException;
+import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
 
 /** 实现 RabbitMQ 的 Java SDK 的消费者, 其负责 HutchConsumer 的执行与异常重试处理 */
@@ -55,7 +56,19 @@ class SimpleConsumer extends DefaultConsumer {
   /** 具体调用 HutchConsumer 实例类的 onMessage 方法以及错误相关的处理入口 */
   private void callHutchConsumer(Message msg, long deliveryTag) {
     try {
-      this.hutchConsumer.onMessage(msg);
+      if (this.hutchConsumer.isLogTime()) {
+        var name = this.hutchConsumer.name();
+        var tid = UUID.randomUUID().toString().replaceAll("-", "");
+        var begin = System.currentTimeMillis();
+        try {
+          log.info("{} TID - {} start", name, tid);
+          this.hutchConsumer.onMessage(msg);
+        } finally {
+          log.info("{} TID - {} done: {} ms", name, tid, System.currentTimeMillis() - begin);
+        }
+      } else {
+        this.hutchConsumer.onMessage(msg);
+      }
       // 暂时不支持手动 ack, 全部由 SimpleConsumer 进行自动 ack, 如果任务正常结束就及时 ack
     } catch (AlreadyClosedException e) {
       log.warn("hutch consumer already closed, ignore message", e);

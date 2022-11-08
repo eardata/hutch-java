@@ -36,6 +36,20 @@ public interface HutchConsumer {
         .replace("__subclass", "");
   }
 
+  /**
+   * 当前 Worker 的名称, 默认我在 simplename
+   *
+   * @return
+   */
+  default String name() {
+    return this.getClass().getSimpleName();
+  }
+
+  /** 是否记录任务的执行时间长度 */
+  default boolean isLogTime() {
+    return false;
+  }
+
   /** 每一个 Channel 能够拥有的 prefetch, 避免单个 channel 积累太多任务. default: 2 */
   default int prefetch() {
     return 2;
