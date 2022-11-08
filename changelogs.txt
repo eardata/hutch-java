@@ -1,3 +1,6 @@
+v2.0.7
+* 为 HutchConsumer 增加 isLogTime 配置, 用于记录某一个任务执行时间
+
 v2.0.0
 * 因为 publish 的消息变多, 为了便于代码维护与清晰使用. 使用独立三个 Publisher
   * BodyPushlisher 负责字符串与二进制传递给 MQ
