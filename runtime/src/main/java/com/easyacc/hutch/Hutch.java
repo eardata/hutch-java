@@ -236,18 +236,18 @@ public class Hutch implements IHutch {
     }
 
     try {
-      lock.lock();
       initScheduleExecutor();
 
       connect();
       declareExchanges();
       declareScheduleQueues();
-      declareHutchConsumerQueues();
-    } finally {
-      currentHutch = this;
-      // 确保 currentHutch 不为 null
+      // 确保 currentHutch 不为 null, 需要在 declareHutchConsumerQueues 之前, 因为其内部会触发 MaxRetry 使用
+      Hutch.currentHutch = this;
+
       initRedisClient();
       initHutchConsumerTriggers();
+      declareHutchConsumerQueues();
+    } finally {
       this.isStarted = true;
       lock.unlock();
     }
