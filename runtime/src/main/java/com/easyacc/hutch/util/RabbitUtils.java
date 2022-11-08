@@ -69,8 +69,10 @@ public class RabbitUtils {
   }
 
   public static void closeConnection(AmqpConnectionPool pool) {
-    for (var conn : pool.getConnections()) {
-      RabbitUtils.closeConnection(conn);
+    if (pool != null) {
+      for (var conn : pool.getConnections()) {
+        RabbitUtils.closeConnection(conn);
+      }
     }
   }
 
