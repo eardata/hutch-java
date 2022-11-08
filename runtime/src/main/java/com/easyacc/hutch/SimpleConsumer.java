@@ -81,6 +81,7 @@ class SimpleConsumer extends DefaultConsumer {
       log.warn(String.format("%s consumer error", this.hutchConsumer.name()), e);
     } finally {
       try {
+        // 开启状态才 ack, 避免停止 Hutch 之后, 但任务在执行无法 stop, 最终也无法 ack 报错
         if (getChannel().isOpen()) {
           getChannel().basicAck(deliveryTag, false);
         }
