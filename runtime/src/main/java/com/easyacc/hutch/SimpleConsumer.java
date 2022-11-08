@@ -81,7 +81,9 @@ class SimpleConsumer extends DefaultConsumer {
       log.warn(String.format("%s consumer error", this.hutchConsumer.name()), e);
     } finally {
       try {
-        getChannel().basicAck(deliveryTag, false);
+        if (getChannel().isOpen()) {
+          getChannel().basicAck(deliveryTag, false);
+        }
       } catch (IOException e) {
         // ack 失败只能记录
         log.error("ack error", e);
