@@ -32,20 +32,28 @@ public class ConsumeContext {
     return System.currentTimeMillis() - this.startAt;
   }
 
+  private String logPrefix() {
+    return String.format("%s TID - %s", consumer.name(), getTid());
+  }
+
   public void info(String s, Object... objectsj) {
     Hutch.log().info(String.format("%s %s", logPrefix(), s), objectsj);
+  }
+
+  public void error(String s, Object... objectsj) {
+    Hutch.log().error(String.format("%s %s", logPrefix(), s), objectsj);
   }
 
   public void error(String s, Throwable t) {
     Hutch.log().error(String.format("%s %s", logPrefix(), s), t);
   }
 
-  public void warn(String s, Object... objectsj) {
-    Hutch.log().warn(String.format("%s %s", logPrefix(), s), objectsj);
+  public void debug(String s, Object... objectsj) {
+    Hutch.log().debug(String.format("%s %s", logPrefix(), s), objectsj);
   }
 
-  private String logPrefix() {
-    return String.format("%s TID - %s", consumer.name(), getTid());
+  public void warn(String s, Object... objectsj) {
+    Hutch.log().warn(String.format("%s %s", logPrefix(), s), objectsj);
   }
 
   /**
