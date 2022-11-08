@@ -50,7 +50,7 @@ public class AbcConsumer implements HutchConsumer {
   @Override
   public void onMessage(Message message) {
     Timers.incrementAndGet();
-    System.out.println("AbcConsumer received message: " + message.getBodyContentAsString());
+    cc().info("received message: {}", message.getBodyContentAsString());
   }
 
   public static void clas() {

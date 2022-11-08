@@ -2,6 +2,7 @@ package com.easyacc.hutch;
 
 import com.easyacc.hutch.config.HutchConfig;
 import com.easyacc.hutch.core.AmqpConnectionPool;
+import com.easyacc.hutch.core.ConsumeContext;
 import com.easyacc.hutch.core.HutchConsumer;
 import com.easyacc.hutch.core.MessageProperties;
 import com.easyacc.hutch.core.Threshold;
@@ -66,6 +67,9 @@ public class Hutch implements IHutch {
   public static final String HUTCH_SCHEDULE_EXCHANGE = "hutch.schedule";
   private static final MessagePropertiesConverter MPC = new DefaultMessagePropertiesConverter();
   private static final Set<HutchConsumer> consumers = new HashSet<>();
+
+  /** 使用 ThreadLocal 记录 Consumer 相关的线程关联的信息 */
+  private static final ThreadLocal<ConsumeContext> threadContext = new ThreadLocal<>();
 
   private static final Map<HutchConsumer, Threshold> cachedThresholds = new HashMap<>();
   private static final ResourceLock lock = new ResourceLock();
@@ -415,5 +419,28 @@ public class Hutch implements IHutch {
       RabbitUtils.closeChannel(ch);
     }
     return consumer;
+  }
+
+  /**
+   * 设置 Consumer 运行时的 Context, 仅框架内部使用
+   *
+   * @param void
+   */
+  static void setContext(ConsumeContext cc) {
+    Hutch.threadContext.set(cc);
+  }
+
+  /** 利用 ThreadLocale 提供的, ConsumeContext. 只在 Consumer 执行的过程中有效 */
+  public static ConsumeContext getContext() {
+    return Hutch.threadContext.get();
+  }
+
+  /**
+   * 清理 Consumer 运行结束后的 Context, 仅框架内部使用
+   *
+   * @param void
+   */
+  static void removeContext() {
+    Hutch.threadContext.remove();
   }
 }

@@ -3,6 +3,7 @@ package com.easyacc.hutch;
 import static com.easyacc.hutch.Hutch.getMessagePropertiesConverter;
 
 import com.easyacc.hutch.config.HutchConfig;
+import com.easyacc.hutch.core.ConsumeContext;
 import com.easyacc.hutch.core.HutchConsumer;
 import com.easyacc.hutch.core.Message;
 import com.easyacc.hutch.util.RabbitUtils;
@@ -11,7 +12,6 @@ import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.DefaultConsumer;
 import com.rabbitmq.client.Envelope;
 import java.io.IOException;
-import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
 
 /** 实现 RabbitMQ 的 Java SDK 的消费者, 其负责 HutchConsumer 的执行与异常重试处理 */
@@ -54,32 +54,35 @@ class SimpleConsumer extends DefaultConsumer {
 
   /** 具体调用 HutchConsumer 实例类的 onMessage 方法以及错误相关的处理入口 */
   private void callHutchConsumer(Message msg, long deliveryTag) {
+    var cc = ConsumeContext.ofConsumer(hutchConsumer);
     try {
+      Hutch.setContext(cc);
+
+      // 不支持手动 ack, 全部由 SimpleConsumer 进行自动 ack, 如果任务正常结束就及时 ack
       if (this.hutchConsumer.isLogTime()) {
-        var name = this.hutchConsumer.name();
-        var tid = UUID.randomUUID().toString().replaceAll("-", "");
-        var begin = System.currentTimeMillis();
         try {
-          log.info("{} TID - {} start", name, tid);
+          cc.info("start");
           this.hutchConsumer.onMessage(msg);
         } finally {
-          log.info("{} TID - {} done: {} ms", name, tid, System.currentTimeMillis() - begin);
+          cc.info("done: {} ms", cc.endTime());
         }
       } else {
         this.hutchConsumer.onMessage(msg);
-      } // 暂时不支持手动 ack, 全部由 SimpleConsumer 进行自动 ack, 如果任务正常结束就及时 ack
+      }
     } catch (Exception e) {
       for (var eh : HutchConfig.getErrorHandlers()) {
         try {
           eh.handle(this.hutchConsumer, msg, e);
         } catch (Exception e1) {
           // ignore error handler exception
-          log.error("error handler " + eh.getClass().getName() + " error", e1);
+          cc.error("error handler " + eh.getClass().getName() + " error", e1);
         }
       }
       // 最终的异常要在这里处理掉, 不需要将执行期异常往上抛, 保持 channel 正常
-      log.warn(String.format("%s consumer error", this.hutchConsumer.name()), e);
+      cc.warn(String.format("%s consumer error", this.hutchConsumer.name()), e);
     } finally {
+      Hutch.removeContext();
+
       try {
         // 开启状态才 ack, 避免停止 Hutch 之后, 但任务在执行无法 stop, 最终也无法 ack 报错
         if (getChannel().isOpen()) {
@@ -87,7 +90,7 @@ class SimpleConsumer extends DefaultConsumer {
         }
       } catch (IOException e) {
         // ack 失败只能记录
-        log.error("ack error", e);
+        cc.error("ack error", e);
       }
     }
   }

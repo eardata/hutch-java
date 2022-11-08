@@ -4,6 +4,7 @@ import com.easyacc.hutch.Hutch;
 import com.easyacc.hutch.publisher.JsonPublisher;
 import com.easyacc.hutch.util.HutchUtils;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * 新一个阶段的实现任务:<br>
@@ -97,4 +98,11 @@ public interface HutchConsumer {
 
   /** 具体处理消息, 可抛出异常自定义异常触发 ErrorHandler 处理 */
   void onMessage(Message message) throws Exception;
+
+  /** 获取 ConsumeContext 的便捷方法. 整个执行过程中的日志, 可以通过此方法进行输出, 便于追踪问题 */
+  default ConsumeContext cc() {
+    var ctx = Hutch.getContext();
+    Objects.requireNonNull(ctx, "Consumer is not running, ConsumeContext is not exist!");
+    return ctx;
+  }
 }
