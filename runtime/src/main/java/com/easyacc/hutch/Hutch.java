@@ -1,6 +1,7 @@
 package com.easyacc.hutch;
 
 import com.easyacc.hutch.config.HutchConfig;
+import com.easyacc.hutch.core.AmqpConnectionPool;
 import com.easyacc.hutch.core.HutchConsumer;
 import com.easyacc.hutch.core.MessageProperties;
 import com.easyacc.hutch.core.Threshold;
@@ -11,6 +12,7 @@ import com.easyacc.hutch.util.HutchUtils;
 import com.easyacc.hutch.util.HutchUtils.Gradient;
 import com.easyacc.hutch.util.RabbitUtils;
 import com.easyacc.hutch.util.RedisUtils;
+import com.easyacc.hutch.util.ResourceLock;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
@@ -34,7 +36,6 @@ import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
 import javax.enterprise.inject.spi.CDI;
 import lombok.Getter;
@@ -67,7 +68,7 @@ public class Hutch implements IHutch {
   private static final Set<HutchConsumer> consumers = new HashSet<>();
 
   private static final Map<HutchConsumer, Threshold> cachedThresholds = new HashMap<>();
-  private static final ReentrantLock lock = new ReentrantLock();
+  private static final ResourceLock lock = new ResourceLock();
 
   /** 用于 queue 前缀的应用名, 因为 Quarkus 的 CDI 的机制, 现在需要在 HutchConsumer 初始化之前就设置好, 例如 static {} 代码块中 */
   public static String APP_NAME = "hutch";
@@ -88,7 +89,7 @@ public class Hutch implements IHutch {
 
   private Connection conn;
   /** 将 consumer 的 connection 与其他的区分开 */
-  private Connection connForConsumer;
+  @Getter private AmqpConnectionPool connPoolForConsumer;
 
   @Getter private StatefulRedisConnection<String, String> redisConnection;
 
@@ -235,7 +236,7 @@ public class Hutch implements IHutch {
       return this;
     }
 
-    try {
+    try (var ignored = lock.obtain()) {
       initScheduleExecutor();
 
       connect();
@@ -249,7 +250,6 @@ public class Hutch implements IHutch {
       declareHutchConsumerQueues();
     } finally {
       this.isStarted = true;
-      lock.unlock();
     }
     return this;
   }
@@ -262,8 +262,7 @@ public class Hutch implements IHutch {
     // https://www.cloudamqp.com/blog/the-relationship-between-connections-and-channels-in-rabbitmq.html
     var mode = LaunchMode.current().name();
     this.conn = RabbitUtils.connect(this.config, String.format("hutch-%s", mode));
-    this.connForConsumer =
-        RabbitUtils.connect(this.config, String.format("hutch-consumers-%s", mode));
+    this.connPoolForConsumer = new AmqpConnectionPool(consumers(), config, mode);
     this.ch = conn.createChannel();
   }
 
@@ -382,8 +381,7 @@ public class Hutch implements IHutch {
    */
   @Override
   public void stop() {
-    try {
-      lock.lock();
+    try (var ignore = lock.obtain()) {
       log.info("Stop Hutch");
       if (this.isStarted) {
         for (var q : this.hutchConsumers.keySet()) {
@@ -398,9 +396,8 @@ public class Hutch implements IHutch {
       RedisUtils.close(this.redisConnection);
       RabbitUtils.closeChannel(this.ch);
       RabbitUtils.closeConnection(this.conn);
-      RabbitUtils.closeConnection(this.connForConsumer);
+      RabbitUtils.closeConnection(this.connPoolForConsumer);
       this.isStarted = false;
-      lock.unlock();
     }
   }
 
@@ -409,11 +406,12 @@ public class Hutch implements IHutch {
     SimpleConsumer consumer = null;
     Channel ch = null;
     try {
-      ch = this.connForConsumer.createChannel();
+      ch = this.connPoolForConsumer.createChannel(hc);
       // 并发处理, 每一个 Consumer 为一个并发
       consumer = new SimpleConsumer(ch, hc);
       consumer.consume();
     } catch (Exception e) {
+      log.error("consumeHutchConsumer error.", e);
       RabbitUtils.closeChannel(ch);
     }
     return consumer;

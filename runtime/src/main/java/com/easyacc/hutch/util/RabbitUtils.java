@@ -1,6 +1,7 @@
 package com.easyacc.hutch.util;
 
 import com.easyacc.hutch.config.HutchConfig;
+import com.easyacc.hutch.core.AmqpConnectionPool;
 import com.rabbitmq.client.AlreadyClosedException;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
@@ -64,6 +65,12 @@ public class RabbitUtils {
       } catch (Exception ex) {
         log.debug("Unexpected exception on closing RabbitMQ Channel", ex);
       }
+    }
+  }
+
+  public static void closeConnection(AmqpConnectionPool pool) {
+    for (var conn : pool.getConnections()) {
+      RabbitUtils.closeConnection(conn);
     }
   }
 

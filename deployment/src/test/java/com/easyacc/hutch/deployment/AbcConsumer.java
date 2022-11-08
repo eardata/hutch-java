@@ -14,6 +14,11 @@ public class AbcConsumer implements HutchConsumer {
   public static AtomicInteger Timers = new AtomicInteger(0);
 
   @Override
+  public int concurrency() {
+    return 256;
+  }
+
+  @Override
   public Threshold threshold() {
     return new Threshold() {
       @Override

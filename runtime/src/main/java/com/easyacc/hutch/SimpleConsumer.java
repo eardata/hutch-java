@@ -7,7 +7,6 @@ import com.easyacc.hutch.core.HutchConsumer;
 import com.easyacc.hutch.core.Message;
 import com.easyacc.hutch.util.RabbitUtils;
 import com.rabbitmq.client.AMQP.BasicProperties;
-import com.rabbitmq.client.AlreadyClosedException;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.DefaultConsumer;
 import com.rabbitmq.client.Envelope;
@@ -68,10 +67,7 @@ class SimpleConsumer extends DefaultConsumer {
         }
       } else {
         this.hutchConsumer.onMessage(msg);
-      }
-      // 暂时不支持手动 ack, 全部由 SimpleConsumer 进行自动 ack, 如果任务正常结束就及时 ack
-    } catch (AlreadyClosedException e) {
-      log.warn("hutch consumer already closed, ignore message", e);
+      } // 暂时不支持手动 ack, 全部由 SimpleConsumer 进行自动 ack, 如果任务正常结束就及时 ack
     } catch (Exception e) {
       for (var eh : HutchConfig.getErrorHandlers()) {
         try {
@@ -82,7 +78,7 @@ class SimpleConsumer extends DefaultConsumer {
         }
       }
       // 最终的异常要在这里处理掉, 不需要将执行期异常往上抛, 保持 channel 正常
-      log.warn("msg error", e);
+      log.warn(String.format("%s consumer error", this.hutchConsumer.name()), e);
     } finally {
       try {
         getChannel().basicAck(deliveryTag, false);

@@ -64,6 +64,8 @@ class HutchTest {
     // 需要确保 queue 都存在, 需要调用 start 进行 declare
     h.start();
     assertThat(h.isStarted()).isTrue();
+    assertThat(h.getConnPoolForConsumer().getMaxConcurrencyNumber()).isEqualTo(257);
+    assertThat(h.getConnPoolForConsumer().getConnections().size()).isEqualTo(2);
 
     assertThat(h).isEqualTo(Hutch.current());
 
