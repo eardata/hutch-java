@@ -43,7 +43,9 @@ public interface HutchConsumer {
    * @return
    */
   default String name() {
-    return this.getClass().getSimpleName();
+    // AdsReportHandler_Subclass -> AdsReportHandler
+    var name = this.getClass().getSimpleName();
+    return name.split("_")[0];
   }
 
   /** 是否记录任务的执行时间长度 */
