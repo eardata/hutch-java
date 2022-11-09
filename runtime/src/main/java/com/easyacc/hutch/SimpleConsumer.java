@@ -60,15 +60,9 @@ class SimpleConsumer extends DefaultConsumer {
 
       // 不支持手动 ack, 全部由 SimpleConsumer 进行自动 ack, 如果任务正常结束就及时 ack
       if (this.hutchConsumer.isLogTime()) {
-        try {
-          cc.info("start");
-          this.hutchConsumer.onMessage(msg);
-        } finally {
-          cc.info("done: {} ms", cc.endTime());
-        }
-      } else {
-        this.hutchConsumer.onMessage(msg);
+        cc.info("start");
       }
+      this.hutchConsumer.onMessage(msg);
     } catch (Exception e) {
       for (var eh : HutchConfig.getErrorHandlers()) {
         try {
@@ -81,8 +75,6 @@ class SimpleConsumer extends DefaultConsumer {
       // 最终的异常要在这里处理掉, 不需要将执行期异常往上抛, 保持 channel 正常
       cc.warn(String.format("%s consumer error", this.hutchConsumer.name()), e);
     } finally {
-      Hutch.removeContext();
-
       try {
         // 开启状态才 ack, 避免停止 Hutch 之后, 但任务在执行无法 stop, 最终也无法 ack 报错
         if (getChannel().isOpen()) {
@@ -92,6 +84,12 @@ class SimpleConsumer extends DefaultConsumer {
         // ack 失败只能记录
         cc.error("ack error", e);
       }
+
+      // 在整个任务的最后清理所有事情. 这样避免检查日志的时候, 异常的日志在任务结束之后出现.
+      if (this.hutchConsumer.isLogTime()) {
+        cc.info("done: {} ms", cc.endTime());
+      }
+      Hutch.removeContext();
     }
   }
 

@@ -46,14 +46,16 @@ public class MaxRetry implements ErrorHandler {
       var basicProps = Hutch.convertToDelayProps(rk, msg.getMessageProperties(), delayInMs);
 
       Hutch.publishWithDelay(delayInMs, basicProps, msg.getBody());
-      log.debug(
-          "publish with delay {} using routing_key {} and origin routing_key: {}",
-          basicProps.getExpiration(),
-          HutchUtils.delayRoutingKey(delayInMs),
-          rk);
+      hc.cc()
+          .debug(
+              "publish with delay {} using routing_key {} and origin routing_key: {}",
+              basicProps.getExpiration(),
+              HutchUtils.delayRoutingKey(delayInMs),
+              rk);
     } else {
-      log.info(
-          "message retry count ({}) reach max ({}), ignore message", retryCount, hc.maxRetry());
+      hc.cc()
+          .info(
+              "message retry count ({}) reach max ({}), ignore message", retryCount, hc.maxRetry());
     }
   }
 }
