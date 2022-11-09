@@ -87,7 +87,7 @@ class SimpleConsumer extends DefaultConsumer {
 
       // 在整个任务的最后清理所有事情. 这样避免检查日志的时候, 异常的日志在任务结束之后出现.
       if (this.hutchConsumer.isLogTime()) {
-        cc.info("done: {} ms", cc.endTime());
+        cc.info("done: {} ms", cc.tik());
       }
       Hutch.removeContext();
     }

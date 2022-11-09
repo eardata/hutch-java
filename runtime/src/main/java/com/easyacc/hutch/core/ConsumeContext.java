@@ -24,11 +24,11 @@ public class ConsumeContext {
   }
 
   /**
-   * 结束并返回执行耗时(单位 ms)
+   * 计数一次, 并返回调用 tik 与任务 start 时间之间的耗时(单位 ms). 可用于整个过程中的任务执行时间记录
    *
    * @return 1292 ms
    */
-  public long endTime() {
+  public long tik() {
     return System.currentTimeMillis() - this.startAt;
   }
 
