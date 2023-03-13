@@ -111,3 +111,7 @@ quorum queue. 不在 HutchConsumer 级别做 quorum queue 申明的原因有:
 4. 如果是产品环境, 大多数情况都应该部署高可用环境, 同时使用 quorum queue
 
 所以, 在全局做了一个 quorum queue 开启关闭的开关.
+
+
+## Maven
+1. maven 3.9 的 部署问题: https://github.com/community/community/discussions/49001
