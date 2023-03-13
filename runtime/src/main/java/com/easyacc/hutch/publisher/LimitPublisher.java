@@ -2,6 +2,7 @@ package com.easyacc.hutch.publisher;
 
 import com.easyacc.hutch.Hutch;
 import com.easyacc.hutch.core.HutchConsumer;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.Objects;
@@ -23,7 +24,7 @@ import lombok.SneakyThrows;
 public interface LimitPublisher {
 
   /** 利用 HutchConsumer 将 Object 转为 json 发送消息 */
-  @SneakyThrows
+  @SneakyThrows(JsonProcessingException.class)
   static void publish(Class<? extends HutchConsumer> consumer, Object msg) {
     var json = Hutch.om().writeValueAsString(msg);
     publish(consumer, json);
