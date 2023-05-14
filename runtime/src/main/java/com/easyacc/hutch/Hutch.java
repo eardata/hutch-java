@@ -113,7 +113,12 @@ public class Hutch implements IHutch {
     return currentHutch;
   }
 
+  /** 返回 redis 实例 */
   public static RedisCommands<String, String> redis() {
+    if (current() == null) {
+      throw new IllegalStateException("Hutch is not started");
+    }
+
     return current().redisConnection.sync();
   }
 
@@ -363,7 +368,7 @@ public class Hutch implements IHutch {
   /** 初始化 Redis Connection */
   protected void initRedisClient() {
     if (Strings.isNullOrEmpty(this.config.redisUrl)) {
-      return;
+      throw new IllegalStateException("redisUrl 为 empty!");
     }
 
     // see: https://github.com/lettuce-io/lettuce-core/issues/1543

@@ -16,7 +16,7 @@ import lombok.SneakyThrows;
  *
  * <pre>
  *   核心的设计思路为:
- *   1. 用户通过统一的 HutchLimiter 的入口对需要进行 ratelimit 的任务进行提交
+ *   1. 用户通过统一的 HutchLimiter 的入口对需要进行 rate limit 的任务进行提交
  *   2. 提交的任务会进入 redis 中进行 buffer 与存储, 等待额外的 driver job 根据设定的 limit 去获取并发送任务到 mq
  *   3. 为每一个使用了 Threshold 的 Consumer 注册一个新的 Driver Job, 根据设置的频率与任务量进行获取与调度
  * </pre>
@@ -37,9 +37,8 @@ public interface LimitPublisher {
     // 使用 msg 计算出 key 作为 redis key 的 suffix
     var key = LimitPublisher.zsetKey(hc, msg);
     // TODO: 如果仅仅是使用默认的 Time 作为 score, 那么着就是一个 FIFO/LIFO 的队列, 那么直接使用 LIST 算法上会更快
-    Hutch.redis()
-        //         使用当前时间作为 score
-        .zadd(key, Timestamp.valueOf(LocalDateTime.now()).getTime(), msg);
+    // 使用当前时间作为 score
+    Hutch.redis().zadd(key, Timestamp.valueOf(LocalDateTime.now()).getTime(), msg);
   }
 
   /**
