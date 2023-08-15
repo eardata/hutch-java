@@ -5,9 +5,9 @@ import static com.easyacc.hutch.Hutch.HUTCH_SCHEDULE_EXCHANGE;
 import com.easyacc.hutch.Hutch;
 import com.easyacc.hutch.core.HutchConsumer;
 import com.google.common.base.CaseFormat;
+import jakarta.enterprise.inject.spi.CDI;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
-import javax.enterprise.inject.spi.CDI;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j

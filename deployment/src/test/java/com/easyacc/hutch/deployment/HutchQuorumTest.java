@@ -8,10 +8,10 @@ import com.easyacc.hutch.error_handlers.NoDelayMaxRetry;
 import com.easyacc.hutch.publisher.BodyPublisher;
 import com.easyacc.hutch.publisher.JsonPublisher;
 import io.quarkus.test.QuarkusUnitTest;
+import jakarta.enterprise.inject.spi.CDI;
+import jakarta.inject.Inject;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
-import javax.enterprise.inject.spi.CDI;
-import javax.inject.Inject;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 

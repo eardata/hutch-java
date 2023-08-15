@@ -5,7 +5,7 @@ import static com.google.common.truth.Truth.assertThat;
 import com.easyacc.hutch.Hutch;
 import com.easyacc.hutch.config.HutchConfig;
 import io.quarkus.test.QuarkusUnitTest;
-import javax.inject.Inject;
+import jakarta.inject.Inject;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
