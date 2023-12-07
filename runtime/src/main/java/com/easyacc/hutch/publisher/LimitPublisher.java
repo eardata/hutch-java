@@ -3,8 +3,9 @@ package com.easyacc.hutch.publisher;
 import com.easyacc.hutch.Hutch;
 import com.easyacc.hutch.core.HutchConsumer;
 import com.fasterxml.jackson.core.JsonProcessingException;
-import java.sql.Timestamp;
-import java.time.LocalDateTime;
+import io.lettuce.core.ScoredValue;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Objects;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -25,20 +26,28 @@ public interface LimitPublisher {
 
   /** 利用 HutchConsumer 将 Object 转为 json 发送消息 */
   @SneakyThrows(JsonProcessingException.class)
-  static void publish(Class<? extends HutchConsumer> consumer, Object msg) {
-    var json = Hutch.om().writeValueAsString(msg);
-    publish(consumer, json);
+  static void publish(Class<? extends HutchConsumer> consumer, Object... msgs) {
+    var jsons = new ArrayList<String>();
+    for (var msg : msgs) {
+      jsons.add(Hutch.om().writeValueAsString(msg));
+    }
+
+    publish(consumer, jsons.toArray(String[]::new));
   }
 
   /** 利用 HutchConsumer 限制发送 msg 消息 */
-  static void publish(Class<? extends HutchConsumer> consumer, String msg) {
-    // 寻找到对应的 Consumer 实例
+  static void publish(Class<? extends HutchConsumer> consumer, String... msgs) {
     var hc = HutchConsumer.get(consumer);
-    // 使用 msg 计算出 key 作为 redis key 的 suffix
-    var key = LimitPublisher.zsetKey(hc, msg);
-    // TODO: 如果仅仅是使用默认的 Time 作为 score, 那么着就是一个 FIFO/LIFO 的队列, 那么直接使用 LIST 算法上会更快
-    // 使用当前时间作为 score
-    Hutch.redis().zadd(key, Timestamp.valueOf(LocalDateTime.now()).getTime(), msg);
+
+    // 按照 key 将 msgs 打包
+    var payloads = Arrays.stream(msgs).collect(Collectors.groupingBy(s -> zsetKey(hc, s)));
+    for (var payload : payloads.entrySet()) {
+      var values =
+          payload.getValue().stream()
+              .map(v -> ScoredValue.just(System.currentTimeMillis(), v))
+              .toList();
+      Hutch.redis().zadd(payload.getKey(), values.toArray());
+    }
   }
 
   /**
