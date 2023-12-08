@@ -45,8 +45,8 @@ public interface LimitPublisher {
       var values =
           payload.getValue().stream()
               .map(v -> ScoredValue.just(System.currentTimeMillis(), v))
-              .toList();
-      Hutch.redis().zadd(payload.getKey(), values.toArray());
+              .toArray();
+      Hutch.redis().zadd(payload.getKey(), values);
     }
   }
 
