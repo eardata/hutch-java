@@ -17,6 +17,7 @@ public class HyenaJob implements Runnable {
 
   /** 根据 Threshold.key 计算出来的同一个 Consumer 的不同的 threshold.keys */
   private List<String> consumerThresholdKeys = new ArrayList<>();
+
   /** 缓存最后更新时间 */
   private Instant updatedAt = Instant.now().minusSeconds(11);
 
@@ -38,7 +39,7 @@ public class HyenaJob implements Runnable {
   @Override
   public void run() {
     // 检查 Hutch 是否启动
-    if (Hutch.current() == null) {
+    if (Hutch.current() == null || !Hutch.current().isStarted()) {
       log.error("Hutch 还未启动!");
       return;
     }
