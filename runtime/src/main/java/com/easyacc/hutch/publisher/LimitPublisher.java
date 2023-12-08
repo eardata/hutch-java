@@ -4,6 +4,7 @@ import com.easyacc.hutch.Hutch;
 import com.easyacc.hutch.core.HutchConsumer;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import io.lettuce.core.ScoredValue;
+import io.lettuce.core.ZAddArgs;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Objects;
@@ -26,28 +27,32 @@ public interface LimitPublisher {
 
   /** 利用 HutchConsumer 将 Object 转为 json 发送消息 */
   @SneakyThrows(JsonProcessingException.class)
-  static void publish(Class<? extends HutchConsumer> consumer, Object... msgs) {
+  static long publish(Class<? extends HutchConsumer> consumer, Object... msgs) {
     var jsons = new ArrayList<String>();
     for (var msg : msgs) {
       jsons.add(Hutch.om().writeValueAsString(msg));
     }
 
-    publish(consumer, jsons.toArray(String[]::new));
+    return publish(consumer, jsons.toArray(String[]::new));
   }
 
   /** 利用 HutchConsumer 限制发送 msg 消息 */
-  static void publish(Class<? extends HutchConsumer> consumer, String... msgs) {
+  static long publish(Class<? extends HutchConsumer> consumer, String... msgs) {
     var hc = HutchConsumer.get(consumer);
 
-    // 按照 key 将 msgs 打包
+    // 按照 key 将 msgs 分组
     var payloads = Arrays.stream(msgs).collect(Collectors.groupingBy(s -> zsetKey(hc, s)));
-    for (var payload : payloads.entrySet()) {
-      var values =
-          payload.getValue().stream()
-              .map(v -> ScoredValue.just(System.currentTimeMillis(), v))
-              .toArray();
-      Hutch.redis().zadd(payload.getKey(), values);
-    }
+    return payloads.entrySet().stream()
+        .mapToLong(
+            payload -> {
+              // 将同一 key 下的消息打包
+              var values =
+                  payload.getValue().stream()
+                      .map(v -> ScoredValue.just(System.currentTimeMillis(), v))
+                      .toArray();
+              return Hutch.redis().zadd(payload.getKey(), ZAddArgs.Builder.ch(), values);
+            })
+        .sum();
   }
 
   /**
