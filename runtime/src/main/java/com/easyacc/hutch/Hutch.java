@@ -9,6 +9,7 @@ import com.easyacc.hutch.core.Threshold;
 import com.easyacc.hutch.scheduler.HyenaJob;
 import com.easyacc.hutch.support.DefaultMessagePropertiesConverter;
 import com.easyacc.hutch.support.MessagePropertiesConverter;
+import com.easyacc.hutch.util.ExecutorUtils;
 import com.easyacc.hutch.util.HutchUtils;
 import com.easyacc.hutch.util.HutchUtils.Gradient;
 import com.easyacc.hutch.util.RabbitUtils;
@@ -395,10 +396,11 @@ public class Hutch implements IHutch {
   public void stop() {
     try (var ignore = lock.obtain()) {
       log.info("Stop Hutch");
-      if (scheduledExecutor != null) {
-        scheduledExecutor.shutdownNow();
-      }
 
+      // 先关闭 job
+      ExecutorUtils.close(this.scheduledExecutor);
+
+      // 再关闭 consumer
       if (this.isStarted) {
         for (var q : this.hutchConsumers.keySet()) {
           this.hutchConsumers.get(q).forEach(SimpleConsumer::close);
