@@ -28,6 +28,8 @@ class HutchProcessor {
   /** 构建期将标记有 @HutchConsumer 的元素设置为 SINGLETON 的 scope */
   @BuildStep
   AutoAddScopeBuildItem autoAddScope() {
+    // 参考官方的 schedule extension 来编写
+    // https://github.com/quarkusio/quarkus/blob/main/extensions/scheduler/deployment/src/main/java/io/quarkus/scheduler/deployment/SchedulerProcessor.java
     LOGGER.debug("run autoAddScope to add HutchConsumer to CDI");
     return AutoAddScopeBuildItem.builder()
         .unremovable()

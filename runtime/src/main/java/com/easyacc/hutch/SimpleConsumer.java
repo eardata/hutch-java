@@ -6,6 +6,7 @@ import com.easyacc.hutch.config.HutchConfig;
 import com.easyacc.hutch.core.ConsumeContext;
 import com.easyacc.hutch.core.HutchConsumer;
 import com.easyacc.hutch.core.Message;
+import com.easyacc.hutch.devmode.ConsumerHotReplaceSetup;
 import com.easyacc.hutch.util.RabbitUtils;
 import com.rabbitmq.client.AMQP.BasicProperties;
 import com.rabbitmq.client.Channel;
@@ -75,6 +76,9 @@ class SimpleConsumer extends DefaultConsumer {
       // 最终的异常要在这里处理掉, 不需要将执行期异常往上抛, 保持 channel 正常
       cc.warn(String.format("%s consumer error", this.hutchConsumer.name()), e);
     } finally {
+      // 在 Dev 环境下, 每一次消息都进行一次是否需要 hot reload 的 check
+      ConsumerHotReplaceSetup.reloadCheck();
+
       try {
         // 开启状态才 ack, 避免停止 Hutch 之后, 但任务在执行无法 stop, 最终也无法 ack 报错
         if (getChannel().isOpen()) {
