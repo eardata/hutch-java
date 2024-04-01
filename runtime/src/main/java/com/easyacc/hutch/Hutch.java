@@ -366,7 +366,7 @@ public class Hutch implements IHutch {
       return;
     }
     scheduledExecutor.scheduleAtFixedRate(
-        new HyenaJob(hc), 0, threshold.interval(), TimeUnit.SECONDS);
+        new HyenaJob(hc), 2, threshold.interval(), TimeUnit.SECONDS);
   }
 
   /** 初始化 Redis Connection */
@@ -432,11 +432,7 @@ public class Hutch implements IHutch {
     return consumer;
   }
 
-  /**
-   * 设置 Consumer 运行时的 Context, 仅框架内部使用
-   *
-   * @param void
-   */
+  /** 设置 Consumer 运行时的 Context, 仅框架内部使用 */
   static void setContext(ConsumeContext cc) {
     Hutch.threadContext.set(cc);
   }
@@ -446,11 +442,7 @@ public class Hutch implements IHutch {
     return Hutch.threadContext.get();
   }
 
-  /**
-   * 清理 Consumer 运行结束后的 Context, 仅框架内部使用
-   *
-   * @param void
-   */
+  /** 清理 Consumer 运行结束后的 Context, 仅框架内部使用 */
   static void removeContext() {
     Hutch.threadContext.remove();
   }
