@@ -39,8 +39,12 @@ public class HyenaJob implements Runnable {
   @Override
   public void run() {
     // 检查 Hutch 是否启动
-    if (Hutch.current() == null || !Hutch.current().isStarted()) {
-      log.error("Hutch 还未启动!");
+    if (Hutch.current() == null) {
+      log.warn("Hutch 还未初始化完成. {} {}s 后再运行", hc.name(), threshold().interval());
+      return;
+    }
+    if (!Hutch.current().isStarted()) {
+      log.warn("Hutch 海外正常启动. {} {}s 后再运行", hc.name(), threshold().interval());
       return;
     }
 
