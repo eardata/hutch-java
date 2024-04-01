@@ -61,7 +61,7 @@ public class HutchConfig {
   @ConfigItem(defaultValue = "6")
   public int schdulePoolSize;
 
-  /** 具体一个 Consumer 执行任务的时候的 ThreadPool 的大小. */
+  /** 具体一个 Consumer 执行任务的时候的 ThreadPool 的大小. 如果 <=0, 则表示不限制线程数量 */
   @ConfigItem(defaultValue = "20")
   public int workerPoolSize;
 
