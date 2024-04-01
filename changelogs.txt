@@ -1,3 +1,8 @@
+v3.8.3
+* 将版本号与支持的 quarkus 的最低要求的版本保持一致
+* 增加了 Hutch 在 quarkus 的 Dev 环境下, 如果 Consumer 代码发生变化会自动依据消息处理触发代码的 live reload.
+* 增加 workerPoolSize 参数, 如果 <= 0 表示不限制线程池, 如果大于则设置固定线程数量的线程池
+
 v2.0.9
 * 提供 ConsumeContext, 其中生成任务执行唯一的 tid, 用于追踪整个任务执行过程中的日志
 
