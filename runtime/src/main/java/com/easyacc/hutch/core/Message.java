@@ -17,6 +17,7 @@
 package com.easyacc.hutch.core;
 
 import com.easyacc.hutch.Hutch;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import java.io.Serializable;
 import java.nio.charset.Charset;
 import java.util.Arrays;
@@ -124,7 +125,7 @@ public class Message implements Serializable {
     }
   }
 
-  @SneakyThrows
+  @SneakyThrows(JsonProcessingException.class)
   public <T> T toType(Class<T> clazz) {
     return Hutch.om().readerFor(clazz).readValue(this.getBodyContentAsString());
   }

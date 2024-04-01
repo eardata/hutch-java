@@ -9,6 +9,7 @@ import com.easyacc.hutch.core.Threshold;
 import com.easyacc.hutch.scheduler.HyenaJob;
 import com.easyacc.hutch.support.DefaultMessagePropertiesConverter;
 import com.easyacc.hutch.support.MessagePropertiesConverter;
+import com.easyacc.hutch.util.ExecutorUtils;
 import com.easyacc.hutch.util.HutchUtils;
 import com.easyacc.hutch.util.HutchUtils.Gradient;
 import com.easyacc.hutch.util.RabbitUtils;
@@ -27,6 +28,7 @@ import io.lettuce.core.api.StatefulRedisConnection;
 import io.lettuce.core.api.sync.RedisCommands;
 import io.lettuce.core.protocol.ProtocolVersion;
 import io.quarkus.runtime.LaunchMode;
+import jakarta.enterprise.inject.spi.CDI;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -38,7 +40,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
-import javax.enterprise.inject.spi.CDI;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.SneakyThrows;
@@ -76,6 +77,7 @@ public class Hutch implements IHutch {
 
   /** 用于 queue 前缀的应用名, 因为 Quarkus 的 CDI 的机制, 现在需要在 HutchConsumer 初始化之前就设置好, 例如 static {} 代码块中 */
   public static String APP_NAME = "hutch";
+
   /** 用于方便进行 static 方法进行调用 */
   private static volatile Hutch currentHutch;
 
@@ -92,6 +94,7 @@ public class Hutch implements IHutch {
   @Getter private Channel ch;
 
   private Connection conn;
+
   /** 将 consumer 的 connection 与其他的区分开 */
   @Getter private AmqpConnectionPool connPoolForConsumer;
 
@@ -113,7 +116,12 @@ public class Hutch implements IHutch {
     return currentHutch;
   }
 
+  /** 返回 redis 实例 */
   public static RedisCommands<String, String> redis() {
+    if (current() == null) {
+      throw new IllegalStateException("Hutch is not started");
+    }
+
     return current().redisConnection.sync();
   }
 
@@ -166,6 +174,7 @@ public class Hutch implements IHutch {
       }
     }
   }
+
   // ----------------
 
   /** 处理 Delay Message 需要处理的 header 信息等等, 保留原来消息中的 props header 等信息 */
@@ -363,7 +372,7 @@ public class Hutch implements IHutch {
   /** 初始化 Redis Connection */
   protected void initRedisClient() {
     if (Strings.isNullOrEmpty(this.config.redisUrl)) {
-      return;
+      throw new IllegalStateException("redisUrl 为 empty!");
     }
 
     // see: https://github.com/lettuce-io/lettuce-core/issues/1543
@@ -387,6 +396,11 @@ public class Hutch implements IHutch {
   public void stop() {
     try (var ignore = lock.obtain()) {
       log.info("Stop Hutch");
+
+      // 先关闭 job
+      ExecutorUtils.close(this.scheduledExecutor);
+
+      // 再关闭 consumer
       if (this.isStarted) {
         for (var q : this.hutchConsumers.keySet()) {
           this.hutchConsumers.get(q).forEach(SimpleConsumer::close);
@@ -394,9 +408,6 @@ public class Hutch implements IHutch {
         this.hutchConsumers.clear();
       }
     } finally {
-      if (scheduledExecutor != null) {
-        scheduledExecutor.shutdownNow();
-      }
       RedisUtils.close(this.redisConnection);
       RabbitUtils.closeChannel(this.ch);
       RabbitUtils.closeConnection(this.conn);
