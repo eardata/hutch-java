@@ -44,7 +44,6 @@ public class HyenaJob implements Runnable {
       return;
     }
     if (!Hutch.current().isStarted()) {
-      log.warn("Hutch 海外正常启动. {} {}s 后再运行", hc.name(), threshold().interval());
       return;
     }
 
