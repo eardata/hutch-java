@@ -313,8 +313,8 @@ public class Hutch implements IHutch {
   protected void declareHutchConsumerQueues() {
     var queues = Hutch.queues();
     log.info(
-        "Start Hutch ({}) with queues({}): {}",
-        HutchConfig.getSharedExecutor().getClass().getSimpleName(),
+        "Start Hutch concurrency {} with queues({}): {}",
+        config.workerPoolSize,
         queues.size(),
         queues);
     for (var hc : Hutch.consumers()) {

@@ -61,11 +61,19 @@ public class HutchConfig {
   @ConfigItem(defaultValue = "6")
   public int schdulePoolSize;
 
+  /** 具体一个 Consumer 执行任务的时候的 ThreadPool 的大小. */
+  @ConfigItem(defaultValue = "20")
+  public int workerPoolSize;
+
   /** 获取全局默认的那个 Executors */
-  public static ExecutorService getSharedExecutor() {
+  public static ExecutorService getSharedExecutor(int size) {
     if (sharedExecutor == null) {
       // 这里使用 newCachedThreadPool 与 使用 VirtualThread 很类似了, 可以无止境的根据需要创建新的 Thread
-      sharedExecutor = Executors.newCachedThreadPool();
+      if (size <= 0) {
+        sharedExecutor = Executors.newCachedThreadPool();
+      } else {
+        sharedExecutor = Executors.newFixedThreadPool(size);
+      }
     }
     return sharedExecutor;
   }

@@ -47,7 +47,7 @@ public class RabbitUtils {
     cf.setUsername(config.username);
     cf.setPassword(config.password);
     cf.setVirtualHost(config.virtualHost);
-    return cf.newConnection(HutchConfig.getSharedExecutor(), name);
+    return cf.newConnection(HutchConfig.getSharedExecutor(config.workerPoolSize), name);
   }
 
   public static void closeChannel(Channel ch) {
