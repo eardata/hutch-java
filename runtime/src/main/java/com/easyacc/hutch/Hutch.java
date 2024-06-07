@@ -16,8 +16,11 @@ import com.easyacc.hutch.util.RabbitUtils;
 import com.easyacc.hutch.util.RedisUtils;
 import com.easyacc.hutch.util.ResourceLock;
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.MapperFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
+import com.fasterxml.jackson.databind.SerializationFeature;
 import com.google.common.base.Strings;
 import com.rabbitmq.client.AMQP.BasicProperties;
 import com.rabbitmq.client.Channel;
@@ -191,6 +194,9 @@ public class Hutch implements IHutch {
       var objectMapper = new ObjectMapper();
       objectMapper.setPropertyNamingStrategy(PropertyNamingStrategies.SNAKE_CASE);
       objectMapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
+      objectMapper.disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
+      objectMapper.disable(SerializationFeature.FAIL_ON_EMPTY_BEANS);
+      objectMapper.enable(MapperFeature.ACCEPT_CASE_INSENSITIVE_PROPERTIES);
       Hutch.objectMapper = objectMapper;
     }
     return Hutch.objectMapper;
