@@ -147,5 +147,6 @@ class HutchTest {
     var h = CDI.current().select(Hutch.class).get();
     h.start();
     assertThat(h.clearScheduleQueues()).isTrue();
+    assertThat(h.clearHutchConsumerQueues()).isTrue();
   }
 }

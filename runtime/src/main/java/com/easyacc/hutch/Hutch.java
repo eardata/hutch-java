@@ -328,7 +328,7 @@ public class Hutch implements IHutch {
     for (var g : Gradient.values()) {
       try {
         oks.add(this.ch.queueDelete(g.queue()));
-      } catch (Exception e) {
+      } catch (IOException e) {
         log.error("Clear delay queue {} error", g.queue(), e);
       }
     }
@@ -348,6 +348,18 @@ public class Hutch implements IHutch {
       initHutchConsumer(hc);
       log.debug("Connect to {}", hc.queue());
     }
+  }
+
+  public boolean clearHutchConsumerQueues() {
+    var oks = new ArrayList<Queue.DeleteOk>();
+    for (var hc : Hutch.consumers()) {
+      try {
+        oks.add(this.ch.queueDelete(hc.queue()));
+      } catch (IOException e) {
+        log.error("Clear consumer queue {} error", hc.queue(), e);
+      }
+    }
+    return Hutch.consumers().size() == oks.size();
   }
 
   protected void declareHutchConsumerQueue(HutchConsumer hc) {
