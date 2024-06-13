@@ -6,7 +6,7 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import lombok.extern.slf4j.Slf4j;
 
-/** Created by IntelliJ IDEA. User: mpx Date: 2024/4/2 Time: 00:40 */
+/** 配合 Quarkus 的, 用于检查是否需要进行 HotReload 的机制 */
 @Slf4j
 public class ConsumerHotReplaceSetup implements HotReplacementSetup {
 
