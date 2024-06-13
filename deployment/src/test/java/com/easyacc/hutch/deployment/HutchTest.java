@@ -141,4 +141,11 @@ class HutchTest {
     h.stop();
     assertThat(h.isStarted()).isFalse();
   }
+
+  @Test
+  void testClearScheduleQueue() {
+    var h = CDI.current().select(Hutch.class).get();
+    h.start();
+    assertThat(h.clearScheduleQueues()).isTrue();
+  }
 }

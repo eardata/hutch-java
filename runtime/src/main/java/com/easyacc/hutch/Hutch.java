@@ -23,6 +23,7 @@ import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.google.common.base.Strings;
 import com.rabbitmq.client.AMQP.BasicProperties;
+import com.rabbitmq.client.AMQP.Queue;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import io.lettuce.core.ClientOptions;
@@ -33,6 +34,7 @@ import io.lettuce.core.protocol.ProtocolVersion;
 import io.quarkus.runtime.LaunchMode;
 import jakarta.enterprise.inject.spi.CDI;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
@@ -275,7 +277,7 @@ public class Hutch implements IHutch {
 
   /** 初始化 Hutch 自己使用的默认操作进行连接 */
   @SneakyThrows
-  public void connect() {
+  protected void connect() {
     log.info("Hutch{}({}) connect to RabbitMQ: {}", this, Hutch.name(), config.getUri());
     // 不能完全使用一样, 是避免在 quakrus 的 dev 模式进行代码 reload
     // https://www.cloudamqp.com/blog/the-relationship-between-connections-and-channels-in-rabbitmq.html
@@ -295,8 +297,7 @@ public class Hutch implements IHutch {
     }
   }
 
-  protected void declareScheduleQueues() {
-    // 初始化 delay queue 相关的信息
+  public Map<String, Object> delayQueueArgs() {
     var delayQueueArgs = new HashMap<String, Object>();
     // TODO: 可以考虑 x-message-ttl 为每个队列自己的超时时间, 这里设置成 30 天没有太大意义. (需要与 hutch-schedule 进行迁移)
     delayQueueArgs.put("x-message-ttl", TimeUnit.DAYS.toMillis(30));
@@ -304,6 +305,12 @@ public class Hutch implements IHutch {
     if (this.config.quorum) {
       delayQueueArgs.put("x-queue-type", "quorum");
     }
+    return delayQueueArgs;
+  }
+
+  protected void declareScheduleQueues() {
+    var delayQueueArgs = this.delayQueueArgs();
+    // 初始化 delay queue 相关的信息
     for (var g : Gradient.values()) {
       try {
         this.ch.queueDeclare(g.queue(), true, false, false, delayQueueArgs);
@@ -313,6 +320,19 @@ public class Hutch implements IHutch {
         log.error("Declare delay queue {} error", g.queue(), e);
       }
     }
+  }
+
+  /** 清理掉由 Hutch 创建的所有 schedule queues, 有需要的时候调用, 正常情况这些 queue 应该持久化 */
+  public boolean clearScheduleQueues() {
+    var oks = new ArrayList<Queue.DeleteOk>();
+    for (var g : Gradient.values()) {
+      try {
+        oks.add(this.ch.queueDelete(g.queue()));
+      } catch (Exception e) {
+        log.error("Clear delay queue {} error", g.queue(), e);
+      }
+    }
+    return Gradient.values().length == oks.size();
   }
 
   /** 启动 Hutch 所有注册的 Consumer */
