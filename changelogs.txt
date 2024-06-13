@@ -1,3 +1,11 @@
+v3.9.0
+* 支持最低 quarkus 3.9.0 以上版本
+* 解决 Jackson 默认的 ObjectMapper 配置太严格, 因为 unkonw field 导致反序列化报错的 bug
+* 升级 rabbitmq client 从 5.20 -> 5.21
+* 整个 Hutch 实例用于执行任务的 ExecutorService 统一从 Hutch#current 实例中获取
+* 为 Hutch 的 stop 提供安全关闭. 1. 优先 close consumer; 2. prefetch 的任务 nack; 3. 等待已经在执行中的任务正常 ack; 4. 最后关闭
+connection.
+
 v3.8.3
 * 将版本号与支持的 quarkus 的最低要求的版本保持一致
 * 增加了 Hutch 在 quarkus 的 Dev 环境下, 如果 Consumer 代码发生变化会自动依据消息处理触发代码的 live reload.
