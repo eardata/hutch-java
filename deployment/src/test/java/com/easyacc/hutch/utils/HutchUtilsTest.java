@@ -14,6 +14,7 @@ public class HutchUtilsTest {
     assertThat(Gradient.G5.fixdDelay()).isEqualTo(5000L);
   }
 
+
   @Test
   void testBackOffDelay() {
     assertThat(Math.pow(3, 0)).isEqualTo(1);

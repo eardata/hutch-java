@@ -19,37 +19,42 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
 class HutchTest {
-  @RegisterExtension
-  static final QuarkusUnitTest app =
-      new QuarkusUnitTest()
-          .overrideConfigKey("quarkus.application.name", "hutch-app")
-          // 默认关闭, 每一个测试需要自己 Hutch 实例
-          .overrideConfigKey("quarkus.hutch.enable", "false")
-          .overrideConfigKey("quarkus.hutch.name", "lake_web")
-          .overrideConfigKey("quarkus.hutch.virtual-host", "test")
-          .overrideConfigKey("quarkus.hutch.redis-url", "redis://localhost:6379")
-          .overrideConfigKey("quarkus.hutch.worker-pool-size", "300")
-          // .overrideConfigKey("quarkus.log.level", "debug")
-          .withApplicationRoot(
-              jar ->
-                  jar.addClass(AbcConsumer.class)
-                      .addClass(BbcConsumer.class)
-                      .addClass(LongTimeConsumer.class));
-
-  @Inject HutchConfig config;
-  @Inject AbcConsumer abcConsumer;
-
-  // 每一个测试都需要自己的 Hutch 实例
-  Hutch newHutch() {
+  public Hutch hutch(HutchConfig config) {
     config.enable = true;
 
     // 下面几个值再每一个测试中需要重置
     AbcConsumer.Timers.set(0);
     BbcConsumer.Timers.set(0);
     LongTimeConsumer.Runs.set(0);
+
     SimpleConsumer.ActiveConsumerCount.set(0);
     return new Hutch(config);
   }
+
+  public static QuarkusUnitTest quarkusApp(String vhost) {
+    var app =
+        new QuarkusUnitTest()
+            .overrideConfigKey("quarkus.application.name", "hutch-app")
+            // 默认关闭, 每一个测试需要自己 Hutch 实例
+            .overrideConfigKey("quarkus.hutch.enable", "false")
+            .overrideConfigKey("quarkus.hutch.name", "lake_web")
+            .overrideConfigKey("quarkus.hutch.redis-url", "redis://localhost:6379")
+            .overrideConfigKey("quarkus.hutch.worker-pool-size", "300")
+            .overrideConfigKey("quarkus.hutch.virtual-host", vhost)
+            //                    .overrideConfigKey("quarkus.log.level", "debug")
+            .withApplicationRoot(
+                jar ->
+                    jar.addClass(AbcConsumer.class)
+                        .addClass(BbcConsumer.class)
+                        .addClass(LongTimeConsumer.class));
+
+    return app;
+  }
+
+  @RegisterExtension static final QuarkusUnitTest app = quarkusApp("test");
+
+  @Inject HutchConfig config;
+  @Inject AbcConsumer abcConsumer;
 
   @Test
   void testHutchConsumerAllInCDI() {
@@ -79,8 +84,7 @@ class HutchTest {
 
   @Test
   void testEnqueue() throws IOException, InterruptedException {
-    //    var h = CDI.current().select(Hutch.class).get();
-    var h = newHutch();
+    var h = hutch(config);
     // 需要确保 queue 都存在, 需要调用 start 进行 declare
     h.start();
 
@@ -115,7 +119,7 @@ class HutchTest {
   void testMaxRetry() throws InterruptedException {
     HutchConfig.getErrorHandlers().clear();
     HutchConfig.getErrorHandlers().add(new NoDelayMaxRetry());
-    var h = newHutch();
+    var h = hutch(config);
     assertThat(h.isStarted()).isFalse();
     h.start();
     assertThat(h).isEqualTo(Hutch.current());
@@ -130,7 +134,7 @@ class HutchTest {
   void testPublishJsonDelayRetry() throws InterruptedException, IOException {
     HutchConfig.getErrorHandlers().clear();
     HutchConfig.getErrorHandlers().add(new NoDelayMaxRetry());
-    var h = newHutch();
+    var h = hutch(config);
     h.start();
     var hc = HutchConsumer.get(AbcConsumer.class);
 
@@ -153,7 +157,7 @@ class HutchTest {
     HutchConfig.getErrorHandlers().clear();
     HutchConfig.getErrorHandlers().add(new NoDelayMaxRetry());
 
-    var h = newHutch();
+    var h = hutch(config);
     h.start();
     var hc = HutchConsumer.get(AbcConsumer.class);
     LimitPublisher.publish(AbcConsumer.class, "ccc");
@@ -171,7 +175,7 @@ class HutchTest {
 
   @Test
   void testClearScheduleQueue() {
-    var h = newHutch();
+    var h = hutch(config);
     h.start();
     assertThat(h.clearScheduleQueues()).isTrue();
     assertThat(h.clearHutchConsumerQueues()).isTrue();
@@ -180,7 +184,7 @@ class HutchTest {
 
   @Test
   void testCloseHutch() throws InterruptedException, IOException {
-    var h = newHutch();
+    var h = hutch(config);
     h.start();
 
     // 推送 1000 个任务, 等待 3s, 完成一批次 300 个并发任务,其他的没有完成的任务全部 nack 回去,只完成 300 个任务
