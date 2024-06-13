@@ -11,7 +11,7 @@ public class LongTimeConsumer implements HutchConsumer {
 
   @Override
   public int concurrency() {
-    return 2;
+    return 300;
   }
 
   public static AtomicInteger Runs = new AtomicInteger(0);
@@ -20,9 +20,9 @@ public class LongTimeConsumer implements HutchConsumer {
   public void onMessage(Message message) throws InterruptedException {
     Runs.incrementAndGet();
     try {
-      System.out.println(Thread.currentThread().getName() + ": LongTimeConsumer begin wait..");
-      Thread.sleep(Duration.of(10, ChronoUnit.SECONDS).toMillis());
-      System.out.println(Thread.currentThread().getName() + ": LongTimeConsumer finished wait..");
+      Thread.sleep(Duration.of(2, ChronoUnit.SECONDS).toMillis());
+    } catch (Exception e) {
+      System.out.println("eeeee:" + e.getMessage());
     } finally {
       Runs.decrementAndGet();
     }

@@ -8,9 +8,9 @@ import io.quarkus.runtime.annotations.ConfigRoot;
 import io.quarkus.runtime.annotations.StaticInitSafe;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ThreadPoolExecutor;
 import lombok.ToString;
 
 /** 提供配置 Hutch 的配置. 需要是 StaticInitSafe 状态, 能够在 static 的时候就开始处理 */
@@ -70,12 +70,12 @@ public class HutchConfig {
    * @param size 并发的数量. 如果不设限制, 那么则 < 0, 否则 100 表示 100 并发线程数
    * @return
    */
-  public static ExecutorService buildSharedExecutor(int size) {
+  public static ThreadPoolExecutor buildSharedExecutor(int size) {
     // 这里使用 newCachedThreadPool 与 使用 VirtualThread 很类似了, 可以无止境的根据需要创建新的 Thread
     if (size <= 0) {
-      return Executors.newCachedThreadPool();
+      return (ThreadPoolExecutor) Executors.newCachedThreadPool();
     } else {
-      return Executors.newFixedThreadPool(size);
+      return (ThreadPoolExecutor) Executors.newFixedThreadPool(size);
     }
   }
 

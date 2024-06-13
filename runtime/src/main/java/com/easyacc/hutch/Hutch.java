@@ -41,8 +41,8 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import lombok.Getter;
@@ -94,7 +94,7 @@ public class Hutch implements IHutch {
   private ScheduledExecutorService scheduledExecutor;
 
   /** 整个 Hutch 实例的所有 Consumer 共享的 ExecutorService */
-  @Getter private ExecutorService sharedExecutor;
+  @Getter private ThreadPoolExecutor sharedExecutor;
 
   @Getter private final HutchConfig config;
 
@@ -109,6 +109,9 @@ public class Hutch implements IHutch {
   @Getter private StatefulRedisConnection<String, String> redisConnection;
 
   @Getter private boolean isStarted = false;
+
+  // 表示 Hutch 是否已经进行 Stopping 的状态. (关键点是开始进行 close channel 和 Connection 了)
+  @Getter private boolean isStopping = false;
 
   public Hutch(HutchConfig config) {
     this.config = config;
@@ -261,7 +264,7 @@ public class Hutch implements IHutch {
       return this;
     }
 
-    try (var ignored = lock.obtain()) {
+    try (var ignore = lock.obtain()) {
       // 确保 currentHutch 不为 null, 后面很多的初始化都依赖 Hutch.current() 正常运行
       Hutch.currentHutch = this;
 
@@ -441,11 +444,11 @@ public class Hutch implements IHutch {
    */
   @Override
   public void stop() {
-    try (var ignore = lock.obtain()) {
+    try {
       log.info("Stopping Hutch");
 
       // 最先关闭 schedule, 不需要再执行
-      ExecutorUtils.close(this.scheduledExecutor);
+      //      ExecutorUtils.close(this.scheduledExecutor);
 
       // 再关闭 consumer
       if (this.isStarted) {
@@ -455,16 +458,46 @@ public class Hutch implements IHutch {
         this.hutchConsumers.clear();
       }
     } finally {
+      this.isStopping = true;
+      this.waitConsumers();
+
       RedisUtils.close(this.redisConnection);
       RabbitUtils.closeChannel(this.ch);
       RabbitUtils.closeConnection(this.conn);
       RabbitUtils.closeConnection(this.connPoolForConsumer);
 
       // 最后关闭 SharedExecutor, 所有的 rabbitmq sdk 的指令都需要这个线程池
-      ExecutorUtils.close(this.sharedExecutor);
+      ExecutorUtils.closeNow(this.sharedExecutor);
       this.isStarted = false;
+      this.isStopping = false;
     }
   }
+
+  // 等待 Consumer 任务的完成
+  public void waitConsumers() {
+    while (SimpleConsumer.ActiveConsumerCount.get() != 0) {
+      log.info("wait for SimpleConsumer to done. {}", SimpleConsumer.ActiveConsumerCount.get());
+      try {
+        Thread.sleep(1000);
+      } catch (InterruptedException e) {
+      }
+    }
+  }
+
+  //  public boolean isStopping() {
+  //    try {
+  //      rwl.readLock().lock();
+  //      return this.isStopping;
+  //    } finally {
+  //      rwl.readLock().unlock();
+  //    }
+  //  }
+  //
+  //  private void setStopping(boolean stop) {
+  //    rwl.writeLock().lock();
+  //    this.isStopping = stop;
+  //    rwl.writeLock().unlock();
+  //  }
 
   /** 根据 Conn 在 RabbitMQ 上订阅一个队列进行消费 */
   public SimpleConsumer consumeHutchConsumer(HutchConsumer hc) {
