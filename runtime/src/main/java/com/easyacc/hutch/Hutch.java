@@ -448,7 +448,7 @@ public class Hutch implements IHutch {
       log.info("Stopping Hutch");
 
       // 最先关闭 schedule, 不需要再执行
-      //      ExecutorUtils.close(this.scheduledExecutor);
+      ExecutorUtils.closeNow(this.scheduledExecutor);
 
       // 再关闭 consumer
       if (this.isStarted) {
