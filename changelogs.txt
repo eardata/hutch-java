@@ -1,3 +1,6 @@
+v3.9.1
+* 修复 ScheduledExecutor 没有 close 的问题
+
 v3.9.0
 * 支持最低 quarkus 3.9.0 以上版本
 * 解决 Jackson 默认的 ObjectMapper 配置太严格, 因为 unkonw field 导致反序列化报错的 bug
