@@ -1,5 +1,6 @@
 package com.easyacc.hutch.util;
 
+import com.easyacc.hutch.Hutch;
 import com.easyacc.hutch.config.HutchConfig;
 import com.easyacc.hutch.core.AmqpConnectionPool;
 import com.rabbitmq.client.AlreadyClosedException;
@@ -47,7 +48,7 @@ public class RabbitUtils {
     cf.setUsername(config.username);
     cf.setPassword(config.password);
     cf.setVirtualHost(config.virtualHost);
-    return cf.newConnection(HutchConfig.getSharedExecutor(config.workerPoolSize), name);
+    return cf.newConnection(Hutch.current().getSharedExecutor(), name);
   }
 
   public static void closeChannel(Channel ch) {

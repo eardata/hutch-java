@@ -41,7 +41,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.Executors;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -92,6 +92,9 @@ public class Hutch implements IHutch {
 
   /** 定时任务的 ExecutorService */
   private ScheduledExecutorService scheduledExecutor;
+
+  /** 整个 Hutch 实例的所有 Consumer 共享的 ExecutorService */
+  @Getter private ExecutorService sharedExecutor;
 
   @Getter private final HutchConfig config;
 
@@ -254,20 +257,25 @@ public class Hutch implements IHutch {
     }
 
     if (this.isStarted) {
+      log.info("Hutch is already started");
       return this;
     }
 
     try (var ignored = lock.obtain()) {
-      initScheduleExecutor();
+      // 确保 currentHutch 不为 null, 后面很多的初始化都依赖 Hutch.current() 正常运行
+      Hutch.currentHutch = this;
 
+      initExecutors();
+      // 构建 mq 中的 exchange 与 queue
       connect();
       declareExchanges();
       declareScheduleQueues();
-      // 确保 currentHutch 不为 null, 需要在 declareHutchConsumerQueues 之前, 因为其内部会触发 MaxRetry 使用
-      Hutch.currentHutch = this;
 
+      // 初始化 schedule
       initRedisClient();
       initHutchConsumerTriggers();
+
+      // 初始化 consumers
       declareHutchConsumerQueues();
     } finally {
       this.isStarted = true;
@@ -277,7 +285,7 @@ public class Hutch implements IHutch {
 
   /** 初始化 Hutch 自己使用的默认操作进行连接 */
   @SneakyThrows
-  protected void connect() {
+  public void connect() {
     log.info("Hutch{}({}) connect to RabbitMQ: {}", this, Hutch.name(), config.getUri());
     // 不能完全使用一样, 是避免在 quakrus 的 dev 模式进行代码 reload
     // https://www.cloudamqp.com/blog/the-relationship-between-connections-and-channels-in-rabbitmq.html
@@ -375,11 +383,6 @@ public class Hutch implements IHutch {
     }
   }
 
-  /** 每个实例拥有一个自己的 ScheduleExecutor. 并且 shutdown 之后, 需要重新构建一个 */
-  protected void initScheduleExecutor() {
-    this.scheduledExecutor = Executors.newScheduledThreadPool(this.config.schdulePoolSize);
-  }
-
   protected void initHutchConsumer(HutchConsumer hc) {
     // Ref: https://github.com/rabbitmq/rabbitmq-perf-test/issues/93
     // 所有的队列保持一个 connection, 实际使用, 队列会非常多, 数量很容易增加到 30 个以上
@@ -388,6 +391,12 @@ public class Hutch implements IHutch {
       scl.add(consumeHutchConsumer(hc));
     }
     this.hutchConsumers.put(hc.queue(), scl);
+  }
+
+  protected void initExecutors() {
+    // 每个实例拥有一个自己的 ScheduleExecutor. 并且 shutdown 之后, 需要重新构建一个
+    this.scheduledExecutor = HutchConfig.buildSharedScheduledExecutor(config.schdulePoolSize);
+    this.sharedExecutor = HutchConfig.buildSharedExecutor(config.workerPoolSize);
   }
 
   /** 为所有的 Consumer 初始化 Job Trigger */
@@ -433,12 +442,13 @@ public class Hutch implements IHutch {
   @Override
   public void stop() {
     try (var ignore = lock.obtain()) {
-      log.info("Stop Hutch");
+      log.info("Stopping Hutch");
 
-      // 先关闭 job
+      // 最先关闭 schedule, 不需要再执行
       ExecutorUtils.close(this.scheduledExecutor);
 
       // 再关闭 consumer
+      System.out.println("stop consumers");
       if (this.isStarted) {
         for (var q : this.hutchConsumers.keySet()) {
           this.hutchConsumers.get(q).forEach(SimpleConsumer::close);
@@ -446,10 +456,17 @@ public class Hutch implements IHutch {
         this.hutchConsumers.clear();
       }
     } finally {
+      System.out.println("close redis");
       RedisUtils.close(this.redisConnection);
+      System.out.println("close ch");
       RabbitUtils.closeChannel(this.ch);
+      System.out.println("close conn");
       RabbitUtils.closeConnection(this.conn);
+      System.out.println("close connPoolForConsumer");
       RabbitUtils.closeConnection(this.connPoolForConsumer);
+
+      // 最后关闭 SharedExecutor, 所有的 rabbitmq sdk 的指令都需要这个线程池
+      ExecutorUtils.close(this.sharedExecutor);
       this.isStarted = false;
     }
   }

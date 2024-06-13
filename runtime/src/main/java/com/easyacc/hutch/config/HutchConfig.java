@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import lombok.ToString;
 
 /** 提供配置 Hutch 的配置. 需要是 StaticInitSafe 状态, 能够在 static 的时候就开始处理 */
@@ -17,8 +18,6 @@ import lombok.ToString;
 @ConfigRoot(name = "hutch", phase = ConfigPhase.BUILD_AND_RUN_TIME_FIXED)
 @ToString
 public class HutchConfig {
-  private static ExecutorService sharedExecutor;
-
   private static List<ErrorHandler> errorHandlers;
 
   /** 是否默认启动 */
@@ -65,17 +64,29 @@ public class HutchConfig {
   @ConfigItem(defaultValue = "40")
   public int workerPoolSize;
 
-  /** 获取全局默认的那个 Executors */
-  public static ExecutorService getSharedExecutor(int size) {
-    if (sharedExecutor == null) {
-      // 这里使用 newCachedThreadPool 与 使用 VirtualThread 很类似了, 可以无止境的根据需要创建新的 Thread
-      if (size <= 0) {
-        sharedExecutor = Executors.newCachedThreadPool();
-      } else {
-        sharedExecutor = Executors.newFixedThreadPool(size);
-      }
+  /**
+   * 构建 Hutch 需要的 SharedExecutorService
+   *
+   * @param size 并发的数量. 如果不设限制, 那么则 < 0, 否则 100 表示 100 并发线程数
+   * @return
+   */
+  public static ExecutorService buildSharedExecutor(int size) {
+    // 这里使用 newCachedThreadPool 与 使用 VirtualThread 很类似了, 可以无止境的根据需要创建新的 Thread
+    if (size <= 0) {
+      return Executors.newCachedThreadPool();
+    } else {
+      return Executors.newFixedThreadPool(size);
     }
-    return sharedExecutor;
+  }
+
+  /**
+   * 构建 Schedule 定时器需要的 ScheduledExecutorService
+   *
+   * @param size
+   * @return
+   */
+  public static ScheduledExecutorService buildSharedScheduledExecutor(int size) {
+    return Executors.newScheduledThreadPool(size);
   }
 
   /**

@@ -1,24 +1,15 @@
 package com.easyacc.hutch.util;
 
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.ExecutorService;
 
 /** Created by IntelliJ IDEA. User: kenyon Date: 2023/12/8 Time: 18:10 */
 public class ExecutorUtils {
-  public static void close(ScheduledExecutorService service) {
+  public static void close(ExecutorService service) {
     if (service == null) {
       return;
     }
 
-    service.shutdown();
-    try {
-      // 最多等待 60s
-      if (!service.awaitTermination(60, TimeUnit.SECONDS)) {
-        service.shutdownNow();
-      }
-    } catch (InterruptedException ex) {
-      service.shutdownNow();
-      Thread.currentThread().interrupt();
-    }
+    // 因为关闭任务, 无法确保任务执行后能够发送消息给 mq, 所以也直接一并关闭
+    service.shutdownNow();
   }
 }

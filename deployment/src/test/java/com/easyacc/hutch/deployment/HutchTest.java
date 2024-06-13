@@ -26,7 +26,11 @@ class HutchTest {
           .overrideConfigKey("quarkus.hutch.virtual-host", "test")
           .overrideConfigKey("quarkus.hutch.redis-url", "redis://localhost:6379")
           // .overrideConfigKey("quarkus.log.level", "debug")
-          .withApplicationRoot(jar -> jar.addClass(AbcConsumer.class).addClass(BbcConsumer.class));
+          .withApplicationRoot(
+              jar ->
+                  jar.addClass(AbcConsumer.class)
+                      .addClass(BbcConsumer.class)
+                      .addClass(LongTimeConsumer.class));
 
   @Inject HutchConfig config;
   @Inject AbcConsumer abcConsumer;
@@ -148,5 +152,24 @@ class HutchTest {
     h.start();
     assertThat(h.clearScheduleQueues()).isTrue();
     assertThat(h.clearHutchConsumerQueues()).isTrue();
+  }
+
+  @Test
+  void testCloseHutch() throws InterruptedException, IOException {
+    var h = CDI.current().select(Hutch.class).get();
+    h.start();
+    BodyPublisher.publish(LongTimeConsumer.class, "body");
+    // 等待 1s 让消息去往 ms 然后再回到 hutch 开始执行
+    Thread.sleep(500);
+
+    h.stop();
+    assertThat(LongTimeConsumer.Runs.get()).isEqualTo(0);
+
+    // 等待 mq 将消息重新放回队列可以进行消费
+    Thread.sleep(3000);
+    // 确认在 mq 中的消息, 仍然没有被消费
+    h.connect();
+    var ok = h.getCh().queueDelete(HutchConsumer.get(LongTimeConsumer.class).queue());
+    assertThat(ok.getMessageCount()).isEqualTo(1);
   }
 }
