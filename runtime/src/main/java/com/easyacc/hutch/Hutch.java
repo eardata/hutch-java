@@ -448,7 +448,6 @@ public class Hutch implements IHutch {
       ExecutorUtils.close(this.scheduledExecutor);
 
       // 再关闭 consumer
-      System.out.println("stop consumers");
       if (this.isStarted) {
         for (var q : this.hutchConsumers.keySet()) {
           this.hutchConsumers.get(q).forEach(SimpleConsumer::close);
@@ -456,13 +455,9 @@ public class Hutch implements IHutch {
         this.hutchConsumers.clear();
       }
     } finally {
-      System.out.println("close redis");
       RedisUtils.close(this.redisConnection);
-      System.out.println("close ch");
       RabbitUtils.closeChannel(this.ch);
-      System.out.println("close conn");
       RabbitUtils.closeConnection(this.conn);
-      System.out.println("close connPoolForConsumer");
       RabbitUtils.closeConnection(this.connPoolForConsumer);
 
       // 最后关闭 SharedExecutor, 所有的 rabbitmq sdk 的指令都需要这个线程池
