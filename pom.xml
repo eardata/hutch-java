@@ -9,10 +9,12 @@
   <version>3.9.1</version>
   <packaging>pom</packaging>
   <name>Hutch - Parent</name>
+
   <modules>
     <module>deployment</module>
     <module>runtime</module>
   </modules>
+
   <properties>
     <compiler-plugin.version>3.12.1</compiler-plugin.version>
     <failsafe-plugin.version>${surefire-plugin.version}</failsafe-plugin.version>
