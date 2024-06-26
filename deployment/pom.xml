@@ -5,7 +5,7 @@
   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
   <modelVersion>4.0.0</modelVersion>
   <parent>
-    <groupId>com.easyacc</groupId>
+    <groupId>com.github.eardata</groupId>
     <artifactId>hutch-parent</artifactId>
     <version>3.9.1</version>
   </parent>
@@ -19,7 +19,7 @@
       <artifactId>quarkus-arc-deployment</artifactId>
     </dependency>
     <dependency>
-      <groupId>com.easyacc</groupId>
+      <groupId>com.github.eardata</groupId>
       <artifactId>hutch</artifactId>
       <version>${project.version}</version>
     </dependency>

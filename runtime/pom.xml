@@ -5,7 +5,7 @@
   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
   <modelVersion>4.0.0</modelVersion>
   <parent>
-    <groupId>com.easyacc</groupId>
+    <groupId>com.github.eardata</groupId>
     <artifactId>hutch-parent</artifactId>
     <version>3.9.1</version>
   </parent>
@@ -69,7 +69,8 @@
               <goal>extension-descriptor</goal>
             </goals>
             <configuration>
-              <deployment>${project.groupId}:${project.artifactId}-deployment:${project.version}
+              <deployment>
+                ${project.groupId}:${project.artifactId}-deployment:${project.version}
               </deployment>
             </configuration>
           </execution>
