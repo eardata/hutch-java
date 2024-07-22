@@ -4,11 +4,11 @@
   xmlns="http://maven.apache.org/POM/4.0.0"
   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
   <modelVersion>4.0.0</modelVersion>
-  <groupId>com.github.eardata</groupId>
+  <groupId>com.easyacc</groupId>
   <artifactId>hutch-parent</artifactId>
   <version>3.9.1</version>
   <packaging>pom</packaging>
-  <name>Hutch</name>
+  <name>Hutch - Parent</name>
 
   <modules>
     <module>deployment</module>
@@ -37,6 +37,14 @@
       </dependency>
     </dependencies>
   </dependencyManagement>
+  <distributionManagement>
+    <!--    https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-apache-maven-registry#publishing-a-package-->
+    <repository>
+      <id>github</id>
+      <name>GitHub OWNER Apache Maven Packages</name>
+      <url>https://maven.pkg.github.com/wppurking/hutch-java</url>
+    </repository>
+  </distributionManagement>
   <build>
     <pluginManagement>
       <plugins>
