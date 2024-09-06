@@ -356,7 +356,8 @@ public class Hutch implements IHutch {
         queues);
     for (var hc : Hutch.consumers()) {
       declareHutchConsumerQueue(hc);
-      initHutchConsumer(hc);
+      // HutchConsumer 并发初始化 channel 的 consumer
+      this.getSharedExecutor().submit(() -> initHutchConsumer(hc));
       log.debug("Connect to {}", hc.queue());
     }
   }
@@ -504,6 +505,7 @@ public class Hutch implements IHutch {
     SimpleConsumer consumer = null;
     Channel ch = null;
     try {
+      // TODO: 测试这里的耗时与 channel 的并发情况
       ch = this.connPoolForConsumer.createChannel(hc);
       // 并发处理, 每一个 Consumer 为一个并发
       consumer = new SimpleConsumer(ch, hc);
