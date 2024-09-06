@@ -1,3 +1,6 @@
+v3.9.2
+* 为 Consumer 通过 channel 的初始化并行化, 避免同步处理的时候, 阻塞了应用启动.
+
 v3.9.1
 * 修复 ScheduledExecutor 没有 close 的问题
 
