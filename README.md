@@ -119,9 +119,9 @@ quorum queue. 不在 HutchConsumer 级别做 quorum queue 申明的原因有:
 
 maven 3.9 的 部署问题: https://github.com/community/community/discussions/49001
 
-1. 测:试 mvn test. 每次构建一定要确保测试通过.
-2. 构建到本地: mvn install -DskipTests
-3. 推送远程的 github repo: mvn deploy
+1. 测试: `mvn test`. 每次构建一定要确保测试通过.
+2. 构建到本地: `mvn install -DskipTests`
+3. 推送远程的 github repo: `mvn deploy -DskipTests`
 
 ### 推送给 Github
 
