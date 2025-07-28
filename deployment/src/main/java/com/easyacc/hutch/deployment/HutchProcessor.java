@@ -14,7 +14,7 @@ import io.quarkus.deployment.builditem.FeatureBuildItem;
 import org.jboss.jandex.DotName;
 import org.jboss.logging.Logger;
 
-class HutchProcessor {
+public class HutchProcessor {
 
   static final DotName HUTCH_CONSUMER_NAME = DotName.createSimple(HutchConsumer.class.getName());
   private static final Logger LOGGER = Logger.getLogger(HutchProcessor.class);

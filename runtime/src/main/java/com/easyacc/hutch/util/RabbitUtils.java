@@ -43,11 +43,11 @@ public class RabbitUtils {
   @SneakyThrows
   public static Connection connect(HutchConfig config, String name) {
     var cf = buildConnectionFactory.get();
-    cf.setHost(config.hostname);
-    cf.setPort(config.port);
-    cf.setUsername(config.username);
-    cf.setPassword(config.password);
-    cf.setVirtualHost(config.virtualHost);
+    cf.setHost(config.hostname());
+    cf.setPort(config.port());
+    cf.setUsername(config.username());
+    cf.setPassword(config.password());
+    cf.setVirtualHost(config.virtualHost());
     return cf.newConnection(Hutch.current().getSharedExecutor(), name);
   }
 

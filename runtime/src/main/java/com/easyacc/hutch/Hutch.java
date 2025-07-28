@@ -254,7 +254,7 @@ public class Hutch implements IHutch {
   /** 启动 Hutch 实例, 并且每次启动成功都将重置 currentHutch */
   @Override
   public Hutch start() {
-    if (!this.config.enable) {
+    if (!this.config.enable()) {
       log.info("Hutch is disabled by config property and will not be started");
       return this;
     }
@@ -313,7 +313,7 @@ public class Hutch implements IHutch {
     // TODO: 可以考虑 x-message-ttl 为每个队列自己的超时时间, 这里设置成 30 天没有太大意义. (需要与 hutch-schedule 进行迁移)
     delayQueueArgs.put("x-message-ttl", TimeUnit.DAYS.toMillis(30));
     delayQueueArgs.put("x-dead-letter-exchange", HUTCH_EXCHANGE);
-    if (this.config.quorum) {
+    if (this.config.quorum()) {
       delayQueueArgs.put("x-queue-type", "quorum");
     }
     return delayQueueArgs;
@@ -351,7 +351,7 @@ public class Hutch implements IHutch {
     var queues = Hutch.queues();
     log.info(
         "Start Hutch concurrency {} with queues({}): {}",
-        config.workerPoolSize,
+        config.workerPoolSize(),
         queues.size(),
         queues);
     for (var hc : Hutch.consumers()) {
@@ -377,7 +377,7 @@ public class Hutch implements IHutch {
   protected void declareHutchConsumerQueue(HutchConsumer hc) {
     try {
       var args = new HashMap<>(hc.queueArguments());
-      if (this.config.quorum) {
+      if (this.config.quorum()) {
         args.put("x-queue-type", "quorum");
       }
       this.ch.queueDeclare(hc.queue(), true, false, false, args);
@@ -399,8 +399,8 @@ public class Hutch implements IHutch {
 
   protected void initExecutors() {
     // 每个实例拥有一个自己的 ScheduleExecutor. 并且 shutdown 之后, 需要重新构建一个
-    this.scheduledExecutor = HutchConfig.buildSharedScheduledExecutor(config.schdulePoolSize);
-    this.sharedExecutor = HutchConfig.buildSharedExecutor(config.workerPoolSize);
+    this.scheduledExecutor = HutchConfig.buildSharedScheduledExecutor(config.schdulePoolSize());
+    this.sharedExecutor = HutchConfig.buildSharedExecutor(config.workerPoolSize());
   }
 
   /** 为所有的 Consumer 初始化 Job Trigger */
@@ -422,15 +422,15 @@ public class Hutch implements IHutch {
 
   /** 初始化 Redis Connection */
   protected void initRedisClient() {
-    if (Strings.isNullOrEmpty(this.config.redisUrl)) {
+    if (Strings.isNullOrEmpty(this.config.redisUrl())) {
       throw new IllegalStateException("redisUrl 为 empty!");
     }
 
     // see: https://github.com/lettuce-io/lettuce-core/issues/1543
-    var redis = RedisClient.create(this.config.redisUrl);
+    var redis = RedisClient.create(this.config.redisUrl());
     redis.setOptions(ClientOptions.builder().protocolVersion(ProtocolVersion.RESP2).build());
     this.redisConnection = redis.connect();
-    log.debug("初始化 redis 连接: {}", this.config.redisUrl);
+    log.debug("初始化 redis 连接: {}", this.config.redisUrl());
   }
 
   /**

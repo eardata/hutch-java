@@ -17,6 +17,6 @@ public class HutchRecorder {
   }
 
   public void initHutchName() {
-    Hutch.APP_NAME = this.config.name;
+    Hutch.APP_NAME = this.config.name();
   }
 }
