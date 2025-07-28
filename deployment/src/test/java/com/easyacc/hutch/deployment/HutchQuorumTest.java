@@ -15,11 +15,13 @@ import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
+import org.mockito.Mockito;
 
 /** 测试 quorum queue, 测试的内容与 classic queue 基本一致, 但因为 quarkus 的 test 中的 app 初始化方式, 所以暂时先直接复制测试代码 */
 class HutchQuorumTest {
   public Hutch hutch(HutchConfig config) {
-    config.enable = true;
+    // 强制开启
+    Mockito.when(config.enable()).thenReturn(true);
 
     // 下面几个值再每一个测试中需要重置
     AbcConsumer.Timers.set(0);
@@ -43,7 +45,8 @@ class HutchQuorumTest {
             //                    .overrideConfigKey("quarkus.log.level", "debug")
             .withApplicationRoot(
                 jar ->
-                    jar.addClass(AbcConsumer.class)
+                    jar.addClass(Producers.class)
+                        .addClass(AbcConsumer.class)
                         .addClass(BbcConsumer.class)
                         .addClass(LongTimeConsumer.class));
 
@@ -84,6 +87,7 @@ class HutchQuorumTest {
   void testMaxRetry() throws InterruptedException {
     HutchConfig.getErrorHandlers().clear();
     HutchConfig.getErrorHandlers().add(new NoDelayMaxRetry());
+
     var h = hutch(config);
     assertThat(h.isStarted()).isFalse();
     h.start();
@@ -99,6 +103,7 @@ class HutchQuorumTest {
   void testPublishJsonDelayRetry() throws InterruptedException, IOException {
     HutchConfig.getErrorHandlers().clear();
     HutchConfig.getErrorHandlers().add(new NoDelayMaxRetry());
+
     var h = hutch(config);
     h.start();
     var hc = HutchConsumer.get(AbcConsumer.class);

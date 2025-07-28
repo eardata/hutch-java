@@ -17,10 +17,12 @@ import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
+import org.mockito.Mockito;
 
 class HutchTest {
   public Hutch hutch(HutchConfig config) {
-    config.enable = true;
+    // 强制开启
+    Mockito.when(config.enable()).thenReturn(true);
 
     // 下面几个值再每一个测试中需要重置
     AbcConsumer.Timers.set(0);
@@ -44,7 +46,8 @@ class HutchTest {
             //                    .overrideConfigKey("quarkus.log.level", "debug")
             .withApplicationRoot(
                 jar ->
-                    jar.addClass(AbcConsumer.class)
+                    jar.addClass(Producers.class)
+                        .addClass(AbcConsumer.class)
                         .addClass(BbcConsumer.class)
                         .addClass(LongTimeConsumer.class));
 
@@ -119,13 +122,17 @@ class HutchTest {
   void testMaxRetry() throws InterruptedException {
     HutchConfig.getErrorHandlers().clear();
     HutchConfig.getErrorHandlers().add(new NoDelayMaxRetry());
+
     var h = hutch(config);
     assertThat(h.isStarted()).isFalse();
+
     h.start();
     assertThat(h).isEqualTo(Hutch.current());
+
     BodyPublisher.publish(BbcConsumer.class, "bbc");
     TimeUnit.SECONDS.sleep(6);
     assertThat(BbcConsumer.Timers.get()).isEqualTo(2);
+
     h.stop();
     assertThat(h.isStarted()).isFalse();
   }
@@ -134,6 +141,7 @@ class HutchTest {
   void testPublishJsonDelayRetry() throws InterruptedException, IOException {
     HutchConfig.getErrorHandlers().clear();
     HutchConfig.getErrorHandlers().add(new NoDelayMaxRetry());
+
     var h = hutch(config);
     h.start();
     var hc = HutchConsumer.get(AbcConsumer.class);

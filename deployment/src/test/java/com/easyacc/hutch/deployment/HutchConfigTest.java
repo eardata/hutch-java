@@ -8,6 +8,7 @@ import io.quarkus.test.QuarkusUnitTest;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
+import org.mockito.Mockito;
 
 /** Created by IntelliJ IDEA. User: wyatt Date: 2022/10/13 Time: 00:33 */
 public class HutchConfigTest {
@@ -20,7 +21,11 @@ public class HutchConfigTest {
           .overrideConfigKey("quarkus.hutch.virtual-host", "test")
           .overrideConfigKey("quarkus.hutch.redis-url", "redis://localhost:6379")
           // .overrideConfigKey("quarkus.log.level", "debug")
-          .withApplicationRoot(jar -> jar.addClass(AbcConsumer.class).addClass(BbcConsumer.class));
+          .withApplicationRoot(
+              jar ->
+                  jar.addClass(Producers.class)
+                      .addClass(AbcConsumer.class)
+                      .addClass(BbcConsumer.class));
 
   @Inject HutchConfig config;
 
@@ -28,18 +33,19 @@ public class HutchConfigTest {
   @Test
   void testHutchConfig() {
     assertThat(config).isNotNull();
-    assertThat(config.schdulePoolSize).isEqualTo(6);
-    assertThat(config.enable).isFalse();
-
-    assertThat(config.name).isEqualTo("lake_web");
+    assertThat(config.schdulePoolSize()).isEqualTo(6);
+    assertThat(config.enable()).isFalse();
+    assertThat(config.name()).isEqualTo("lake_web");
     assertThat(Hutch.name()).isEqualTo("lake_web");
+
     var h = new Hutch(config).start();
     assertThat(h.isStarted()).isFalse();
 
     // 强制开启
-    config.enable = true;
+    Mockito.when(config.enable()).thenReturn(true);
     h = new Hutch(config).start();
     assertThat(h.isStarted()).isTrue();
+
     h.stop();
     assertThat(h.isStarted()).isFalse();
   }
