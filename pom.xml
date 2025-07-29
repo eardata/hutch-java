@@ -39,13 +39,13 @@
   </dependencyManagement>
   <distributionManagement>
     <!-- https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-apache-maven-registry#authenticating-to-github-packages -->
-    <!--  https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-apache-maven-registry#publishing-a-package -->
+    <!-- https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-apache-maven-registry#publishing-a-package -->
     <repository>
       <id>github</id>
       <name>GitHub OWNER Apache Maven Packages</name>
       <!--<url>https://maven.pkg.github.com/wppurking/hutch-java</url>-->
-      <!--<url>https://maven.pkg.github.com/eardata/hutch-java</url>-->
-      <url>https://maven.pkg.github.com/kenyonduan/hutch-java</url>
+      <!--<url>https://maven.pkg.github.com/kenyonduan/hutch-java</url>-->
+      <url>https://maven.pkg.github.com/eardata/hutch-java</url>
     </repository>
   </distributionManagement>
   <build>
