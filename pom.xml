@@ -6,7 +6,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>com.easyacc</groupId>
   <artifactId>hutch-parent</artifactId>
-  <version>3.9.3</version>
+  <version>4.0.0</version>
   <packaging>pom</packaging>
   <name>Hutch - Parent</name>
 
@@ -16,15 +16,15 @@
   </modules>
 
   <properties>
-    <compiler-plugin.version>3.14.0</compiler-plugin.version>
+    <compiler-plugin.version>3.15.0</compiler-plugin.version>
     <failsafe-plugin.version>${surefire-plugin.version}</failsafe-plugin.version>
-    <maven.compiler.release>17</maven.compiler.release>
+    <maven.compiler.release>21</maven.compiler.release>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-    <quarkus.version>3.24.5</quarkus.version>
-    <lombok.version>1.18.32</lombok.version>
+    <quarkus.version>3.31.0</quarkus.version>
+    <lombok.version>1.18.42</lombok.version>
     <jackson.version>2.13.1</jackson.version>
-    <surefire-plugin.version>3.0.0</surefire-plugin.version>
+    <surefire-plugin.version>3.5.4</surefire-plugin.version>
   </properties>
   <dependencyManagement>
     <dependencies>
