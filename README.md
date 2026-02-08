@@ -166,3 +166,7 @@ maven 3.9 的 部署问题: https://github.com/community/community/discussions/4
   </servers>
 </settings>
 ```
+
+### TEST
+
+1. 准备 vhost: test 与 test_quorum
