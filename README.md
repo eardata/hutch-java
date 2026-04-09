@@ -120,8 +120,10 @@ quorum queue. 不在 HutchConsumer 级别做 quorum queue 申明的原因有:
 maven 3.9 的 部署问题: https://github.com/community/community/discussions/49001
 
 1. 测试: `mvn test`. 每次构建一定要确保测试通过.
-2. 构建到本地: `mvn install -DskipTests`
-3. 推送远程的 github repo: `mvn deploy -DskipTests`
+2. 构建到本地: `mvn clean install -DskipTests`
+3. 推送远程的 github repo: `mvn clean deploy -DskipTests`
+
+如果是在 VS Code 里开发, 建议始终使用 `clean` 后再进行 install 或 deploy. Java 扩展的增量编译有时会在 `target/classes` 中留下损坏的 class 文件, 典型现象是 class 内嵌 `Unresolved compilation problems`, 最终导致下游 Quarkus 项目在加载 extension recorder 时失败.
 
 ### 推送给 Github
 
