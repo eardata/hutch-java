@@ -7,7 +7,8 @@ import com.rabbitmq.client.Connection;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Comparator;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
@@ -26,9 +27,7 @@ public class AmqpConnectionPool {
   private HutchConfig config;
   @Getter private int maxConcurrencyNumber;
   /** 一个 Connection 的使用数量 */
-  private Map<Connection, AtomicInteger> connections = new HashMap<>();
-  /** 用于记录 Consumer 使用的 Connection */
-  private Map<String, Connection> consumerConnectionMap = new HashMap<>();
+  private final Map<Connection, AtomicInteger> connections = new LinkedHashMap<>();
 
   private Connection defaultConn;
 
@@ -52,33 +51,34 @@ public class AmqpConnectionPool {
         nums);
   }
 
-  public Collection<Connection> getConnections() {
-    return connections.keySet();
+  public synchronized Collection<Connection> getConnections() {
+    return List.copyOf(connections.keySet());
   }
 
-  private Connection pickOne() {
+  private Connection pickOne() throws IOException {
     var op =
         this.connections.entrySet().stream()
+            .filter(value -> value.getValue().get() < MAX_CHANNEL_PER_CONNECTION)
             .min(Comparator.comparingInt(value -> value.getValue().get()));
+    if (op.isEmpty()) {
+      throw new IOException(
+          String.format(
+              "No available RabbitMQ connection, every connection already has %s channels",
+              MAX_CHANNEL_PER_CONNECTION));
+    }
     return op.map(Entry::getKey).orElse(this.defaultConn);
   }
 
-  /** 根据 Connectin 的情况返回 Channel */
-  public Channel createChannel(HutchConsumer consumer) throws IOException {
-    Connection conn = null;
-    try {
-      if (consumerConnectionMap.containsKey(consumer.name())) {
-        conn = consumerConnectionMap.get(consumer.name());
-      } else {
-        conn = pickOne();
-        consumerConnectionMap.put(consumer.name(), conn);
-      }
-      return conn.createChannel();
-    } finally {
-      if (conn != null) {
-        var num = connections.get(conn).incrementAndGet();
-        log.debug("{} connection have {} channels", conn.getClientProvidedName(), num);
-      }
-    }
+  /** 根据 Connection 的情况返回 Channel */
+  public synchronized Channel createChannel(HutchConsumer consumer) throws IOException {
+    var conn = pickOne();
+    var ch = conn.createChannel();
+    var num = connections.get(conn).incrementAndGet();
+    log.debug(
+        "{} connection have {} channels, consumer: {}",
+        conn.getClientProvidedName(),
+        num,
+        consumer.name());
+    return ch;
   }
 }
