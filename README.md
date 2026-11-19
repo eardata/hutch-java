@@ -9,14 +9,19 @@ Hutch 是一个利用 quarkus extension 的方式实现的与 https://github.com
 
 ## 安装
 
-1. 在 quarkus 项目的 build.gradle 中添加 github 上的 packages
+1. 在 quarkus 项目的 build.gradle 中添加内网 Nexus 私服
 
 ```groovy
+// credentials 取自 ~/.gradle/gradle.properties: nexusUsername / nexusPassword
 repositories {
     mavenCentral()
     maven {
-        name 'github packages'
-        url 'https://maven.pkg.github.com/wppurking/hutch-java'
+        name 'nexus'
+        url 'https://lib.dev.lanto.co/repository/maven-public/'
+        credentials {
+            username = findProperty('nexusUsername') ?: System.getenv('NEXUS_USERNAME')
+            password = findProperty('nexusPassword') ?: System.getenv('NEXUS_PASSWORD')
+        }
     }
     mavenLocal()
 }
@@ -25,7 +30,15 @@ repositories {
 2. 添加依赖
 
 ```groovy
-implementation 'com.easyacc:hutch:3.9.0'
+implementation 'com.easyacc:hutch:4.0.3'
+```
+
+内网 Nexus 的 `maven-public` 匿名请求会返回 401, 需要账号（建议用只读账号, 不要用发布用的 deployer）,
+在 `~/.gradle/gradle.properties` 或环境变量 `NEXUS_USERNAME` / `NEXUS_PASSWORD` 中配置:
+
+```properties
+nexusUsername=xxxxx
+nexusPassword=xxxxx
 ```
 
 ## 使用
@@ -117,55 +130,51 @@ quorum queue. 不在 HutchConsumer 级别做 quorum queue 申明的原因有:
 
 ## Maven
 
-maven 3.9 的 部署问题: https://github.com/community/community/discussions/49001
-
 1. 测试: `./mvnw test`. 每次构建一定要确保测试通过.
 2. 构建到本地: `./mvnw install -DskipTests`
-3. 推送远程的 github repo: `./mvnw deploy -DskipTests`
+3. 推送远程的内网 Nexus: `./mvnw deploy -DskipTests`
 
-### 推送给 Github
+### 推送到内网 Nexus
 
-注意在 `~/.m2/settings.xml` 中配置好 github 的 token 等信息.
+`~/.m2/settings.xml` 中配置好 Nexus 的凭据（id 必须与 pom.xml 中的
+`nexus-releases` / `nexus-snapshots` 一致）:
 
 ```xml
-
-<settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
-  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-  xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0
-                      http://maven.apache.org/xsd/settings-1.0.0.xsd">
-
-  <activeProfiles>
-    <activeProfile>github</activeProfile>
-  </activeProfiles>
-
-  <profiles>
-    <profile>
-      <id>github</id>
-      <repositories>
-        <repository>
-          <id>central</id>
-          <url>https://repo1.maven.org/maven2</url>
-        </repository>
-        <repository>
-          <id>github-repo</id>
-          <url>https://maven.pkg.github.com/OWNER/REPOSITORY</url>
-          <snapshots>
-            <enabled>true</enabled>
-          </snapshots>
-        </repository>
-      </repositories>
-    </profile>
-  </profiles>
-
+<settings>
   <servers>
     <server>
-      <id>github</id>
-      <username>wppurking</username>
-      <password>xxxxx</password>
+      <id>nexus</id>
+      <username>deployer</username>
+      <password>******</password>
+    </server>
+    <server>
+      <id>nexus-releases</id>
+      <username>deployer</username>
+      <password>******</password>
+    </server>
+    <server>
+      <id>nexus-snapshots</id>
+      <username>deployer</username>
+      <password>******</password>
     </server>
   </servers>
+
+  <mirrors>
+    <mirror>
+      <id>nexus</id>
+      <mirrorOf>*,!nexus-releases,!nexus-snapshots</mirrorOf>
+      <url>https://lib.dev.lanto.co/repository/maven-public/</url>
+    </mirror>
+  </mirrors>
 </settings>
 ```
+
+注意:
+
+- 发布账号需同时拥有 `maven-releases` 与 `maven-snapshots` 的写权限（Nexus 里 `nx-repository-view-maven2-maven-releases-*`、
+  `nx-repository-view-maven2-maven-snapshots-*`）。
+- `x.y.z-SNAPSHOT` 版本会自动推到 `maven-snapshots`，正式版本推到 `maven-releases`。
+- 正式版本能否重复发布取决于 Nexus 上 `maven-releases` 的 Deployment policy（默认 `Disable redeploy`）; 若被禁止，发布前请先升版本号。
 
 ### TEST
 
